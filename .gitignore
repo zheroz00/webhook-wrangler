@@ -38,3 +38,4 @@ yarn-error.log*
 # Optional: Uncomment if you don't want to track specific command variations
 .claude/*
 scripts/*
+screenshots/*
