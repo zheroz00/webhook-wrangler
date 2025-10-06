@@ -721,8 +721,6 @@ async function sendCurrentUrl() {
     const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
     const selectedEndpoint = endpoints[endpointSelect.value];
     
-    console.log('Sending request with endpoint:', endpointSelect.value); // Debug log
-    
     chrome.runtime.sendMessage({
       action: 'sendWebhook',
       endpoint: endpointSelect.value,
@@ -736,8 +734,6 @@ async function sendCurrentUrl() {
       } : null,
       showNotification: selectedEndpoint.showNotification || false
     }, async response => {
-      console.log('Received response:', response); // Debug full response
-      
       // Reset button state
       spinner.style.display = 'none';
       sendButton.disabled = false;
@@ -746,10 +742,6 @@ async function sendCurrentUrl() {
       if (response.success) {
         showStatus('URL sent successfully!', true);
         
-        // Debug response data
-        console.log('Response data type:', typeof response.responseData);
-        console.log('Response data value:', response.responseData);
-        console.log('Show full response checked:', showFullResponse.checked);
         
         try {
           // Get current history from local storage
@@ -757,7 +749,6 @@ async function sendCurrentUrl() {
           
           // Truncate response data
           const { data: truncatedResponse, truncated } = truncateResponse(response.responseData);
-          console.log('Truncated response:', truncatedResponse); // Debug truncated data
           
           // Create new history item
           const historyItem = {
@@ -792,18 +783,13 @@ async function sendCurrentUrl() {
         
         // Show response in panel
         if (response.responseData && showFullResponse.checked) {
-          console.log('Attempting to show response in panel'); // Debug panel display
-          console.log('Response data before formatting:', response.responseData);
           const formattedResponse = formatResponse(response.responseData);
-          console.log('Formatted response:', formattedResponse);
           
           // Check if responsePanel exists
-          console.log('Response panel element:', responsePanel);
           
           if (responsePanel) {
             responsePanel.innerHTML = formattedResponse;
             responsePanel.classList.add('visible');
-            console.log('Response panel should now be visible');
             
             // Add click handler for copy button
             const copyButton = responsePanel.querySelector('.copy-button');
@@ -822,10 +808,6 @@ async function sendCurrentUrl() {
             console.error('Response panel element not found!');
           }
         } else {
-          console.log('Not showing response panel because:', {
-            hasResponseData: !!response.responseData,
-            showFullResponse: showFullResponse.checked
-          });
           responsePanel.classList.remove('visible');
         }
         
@@ -884,7 +866,6 @@ async function migrateHistoryToLocalStorage() {
     const { history: syncHistory = [] } = await chrome.storage.sync.get('history');
     
     if (syncHistory.length > 0) {
-      console.log('Migrating history from sync to local storage...');
       
       // Check if we already have history in local storage
       const { history: localHistory = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
@@ -896,7 +877,6 @@ async function migrateHistoryToLocalStorage() {
         // Clear history from sync storage to free up space
         await chrome.storage.sync.remove('history');
         
-        console.log('History migration complete');
         showStatus('History migrated to local storage for better performance', true);
       }
     }
