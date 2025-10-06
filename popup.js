@@ -84,6 +84,7 @@ const toggleSettings = document.getElementById('toggleSettings');
 const showFullResponse = document.getElementById('showFullResponse');
 const showNotification = document.getElementById('showNotification');
 const responsePanel = document.getElementById('responsePanel');
+const historyBadge = document.getElementById('historyBadge');
 
 // History Elements
 const historyPanel = document.getElementById('historyPanel');
@@ -131,6 +132,8 @@ endpointSelect.addEventListener('change', async () => {
   if (endpointSelect.value) {
     await chrome.storage.sync.set({ [STORAGE_KEYS.LAST_ENDPOINT]: endpointSelect.value });
   }
+  // Update button states
+  updateActionButtonStates();
 });
 saveButton.addEventListener('click', saveEndpoint);
 deleteButton.addEventListener('click', deleteEndpoint);
@@ -138,6 +141,7 @@ sendButton.addEventListener('click', sendCurrentUrl);
 newEndpointButton.addEventListener('click', createNewEndpoint);
 toggleSettings.addEventListener('click', () => {
   settingsPanel.classList.toggle('visible');
+  historyPanel.classList.remove('visible');
 });
 showFullResponse.addEventListener('change', async (e) => {
   const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
@@ -260,33 +264,42 @@ showNotification.addEventListener('change', async (e) => {
   }
 });
 
+// Update action button states based on endpoint selection
+function updateActionButtonStates() {
+  const hasEndpoint = endpointSelect.value !== '';
+  toggleSettings.disabled = !hasEndpoint;
+  deleteButton.disabled = !hasEndpoint;
+  sendButton.disabled = !hasEndpoint;
+}
+
 async function loadEndpoints() {
   try {
     const { [STORAGE_KEYS.ENDPOINTS]: endpoints = {} } = await chrome.storage.sync.get(STORAGE_KEYS.ENDPOINTS);
     const { [STORAGE_KEYS.LAST_ENDPOINT]: lastEndpoint } = await chrome.storage.sync.get(STORAGE_KEYS.LAST_ENDPOINT);
-    
+
     endpointSelect.innerHTML = '<option value="">Select Endpoint...</option>';
-    
+
     Object.keys(endpoints).forEach(name => {
       const option = document.createElement('option');
       option.value = name;
       option.textContent = name;
       endpointSelect.appendChild(option);
     });
-    
+
     if (Object.keys(endpoints).length > 0) {
       // Use last selected endpoint if it exists, otherwise use first endpoint
-      const endpointToSelect = lastEndpoint && endpoints[lastEndpoint] ? 
-        lastEndpoint : 
+      const endpointToSelect = lastEndpoint && endpoints[lastEndpoint] ?
+        lastEndpoint :
         Object.keys(endpoints)[0];
-      
+
       endpointSelect.value = endpointToSelect;
       await loadSelectedEndpoint();
     } else {
       payloadTemplateInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
     }
-    
-    deleteButton.style.display = endpointSelect.value ? 'inline-flex' : 'none';
+
+    // Update button states
+    updateActionButtonStates();
   } catch (error) {
     showStatus('Error loading endpoints: ' + error.message, false);
   }
@@ -339,8 +352,9 @@ function createNewEndpoint() {
   useApiKeyToggle.checked = false;
   apiKeyInput.value = '';
   apiKeyInput.disabled = true;
-  deleteButton.style.display = 'none';
   settingsPanel.classList.add('visible');
+  historyPanel.classList.remove('visible');
+  updateActionButtonStates();
 }
 
 async function saveEndpoint() {
@@ -432,12 +446,25 @@ function showStatus(message, success) {
   }
 }
 
+// Update history badge count
+function updateHistoryBadge(count) {
+  if (count > 0) {
+    historyBadge.textContent = count > 99 ? '99+' : count;
+    historyBadge.style.display = 'block';
+  } else {
+    historyBadge.style.display = 'none';
+  }
+}
+
 // Load and display history
 async function loadHistory() {
   // Get history from local storage and settings from sync storage
   const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
   const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
   const searchTerm = historySearch.value.toLowerCase();
+
+  // Update badge with total history count
+  updateHistoryBadge(history.length);
   
   // Filter history based on search term
   let filteredHistory = history;

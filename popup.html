@@ -36,7 +36,8 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto;
-      padding: 0 16px 24px 16px;
+      padding: 0 16px 16px 16px;
+      padding-bottom: 80px; /* Space for fixed action bar */
     }
     
     .header {
@@ -46,28 +47,102 @@
       right: 0;
       z-index: 10;
       background: var(--background);
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0 -16px 16px -16px;
+      padding: 16px 16px 12px 16px;
+      margin: 0 -16px 0 -16px;
       border-bottom: 1px solid var(--border);
     }
 
     .endpoint-selector {
-      flex-grow: 1;
-      display: flex;
+      width: 100%;
+    }
+
+    .action-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      align-items: center;
+      padding: 12px 16px;
       background: var(--background);
+      border-top: 1px solid var(--border);
+      z-index: 20;
+    }
+
+    .action-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .action-button svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .action-button.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .action-button.primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(66, 133, 244, 0.3);
+    }
+
+    .action-button.secondary:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: var(--surface);
+    }
+
+    .action-button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: var(--error);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 10px;
+      min-width: 16px;
+      text-align: center;
     }
     
     select {
-      flex-grow: 1;
-      padding: 8px 12px;
+      width: 100%;
+      padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      background: var(--background);
+      background: var(--surface);
       color: var(--text);
       font-size: 14px;
       appearance: none;
@@ -75,53 +150,18 @@
       background-repeat: no-repeat;
       background-position: right 12px top 50%;
       background-size: 10px auto;
-    }
-    
-    .icon-button {
-      width: 32px;
-      height: 32px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--text);
       cursor: pointer;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       transition: all 0.2s ease;
     }
-    
-    .icon-button:hover {
-      background: var(--primary);
-      border-color: var(--primary);
-    }
-    
-    .settings-button {
-      width: 32px;
-      height: 32px;
-      padding: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-      color: var(--text-secondary);
-      opacity: 0.8;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .settings-button:hover {
-      opacity: 1;
-      color: var(--text);
+
+    select:hover {
       border-color: var(--primary);
     }
 
-    .settings-button svg {
-      width: 16px;
-      height: 16px;
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
     }
     
     .settings-panel {
@@ -602,31 +642,6 @@
         <select id="endpointSelect">
           <option value="">Select Endpoint...</option>
         </select>
-        <button class="icon-button" id="newEndpoint" title="Add Endpoint">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <button class="icon-button" id="deleteButton" title="Remove Endpoint">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-      <div class="header-actions">
-        <button class="settings-button" id="toggleSettings" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5ZM4 8C4 5.79086 5.79086 4 8 4C10.2091 4 12 5.79086 12 8C12 10.2091 10.2091 12 8 12C5.79086 12 4 10.2091 4 8Z" fill="currentColor"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.34375 0C8.15463 0 8 0.154633 8 0.34375V2.65625C8 2.84537 8.15463 3 8.34375 3H9.65625C9.84537 3 10 2.84537 10 2.65625V0.34375C10 0.154633 9.84537 0 9.65625 0H8.34375ZM8.34375 13C8.15463 13 8 13.1546 8 13.3438V15.6562C8 15.8454 8.15463 16 8.34375 16H9.65625C9.84537 16 10 15.8454 10 15.6562V13.3438C10 13.1546 9.84537 13 9.65625 13H8.34375Z" fill="currentColor"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3438 8C13.1546 8 13 8.15463 13 8.34375V9.65625C13 9.84537 13.1546 10 13.3438 10H15.6562C15.8454 10 16 9.84537 16 9.65625V8.34375C16 8.15463 15.8454 8 15.6562 8H13.3438ZM0.34375 8C0.154633 8 0 8.15463 0 8.34375V9.65625C0 9.84537 0.154633 10 0.34375 10H2.65625C2.84537 10 3 9.84537 3 9.65625V8.34375C3 8.15463 2.84537 8 2.65625 8H0.34375Z" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="settings-button" id="toggleHistory" title="History">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M8 4.5V8L10.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </div>
     </div>
 
@@ -730,9 +745,39 @@
       <div class="spinner"></div>
       <span>Send Current URL</span>
     </button>
-    
+
     <div id="status" class="status"></div>
     <div id="responsePanel" class="response-panel"></div>
+  </div>
+
+  <div class="action-bar">
+    <button class="action-button primary" id="newEndpoint">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>New</span>
+    </button>
+    <button class="action-button secondary" id="toggleSettings" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M13.5 6L9 1.5L8 2.5L11.5 6H3.5C2.67 6 2 6.67 2 7.5V14.5H3.5V7.5H11.5L8 11L9 12L13.5 7.5L9 3L13.5 6Z" fill="currentColor"/>
+        <path d="M2.5 3L5.5 6L6.5 5L3 1.5L2.5 3Z" fill="currentColor"/>
+      </svg>
+      <span>Edit</span>
+    </button>
+    <button class="action-button secondary" id="deleteButton" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M3 4H13M5 4V3C5 2.448 5.448 2 6 2H10C10.552 2 11 2.448 11 3V4M6.5 7.5V11.5M9.5 7.5V11.5M4 4L4.5 13C4.5 13.552 4.948 14 5.5 14H10.5C11.052 14 11.5 13.552 11.5 13L12 4H4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Delete</span>
+    </button>
+    <button class="action-button secondary" id="toggleHistory">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M8 4.5V8L10.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>History</span>
+      <span class="badge" id="historyBadge" style="display: none;">0</span>
+    </button>
   </div>
 
   <script src="lib/marked.min.js"></script>
