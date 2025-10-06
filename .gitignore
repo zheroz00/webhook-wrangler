@@ -1,0 +1,39 @@
+# gitPrep - Generated and user-specific files
+
+# Session-specific files (generated during prep workflow)
+PREP_SESSION_LOG.md
+SCAN_REPORT.md
+
+# User-specific MCP configuration
+.mcp.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.old
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional: Uncomment if you don't want to track specific command variations
+# .claude/commands/prep-*.md

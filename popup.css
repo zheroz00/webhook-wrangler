@@ -1,0 +1,218 @@
+.form-group {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.checkbox-group {
+  background: var(--background);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.checkbox-group .input-group:last-child {
+  margin-bottom: 0;
+}
+
+.api-auth-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.toggle-group input[type="checkbox"] {
+  margin: 0;
+  width: auto;
+  height: auto;
+}
+
+.toggle-group label {
+  display: inline;
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Remove the label styles for the API auth group */
+.api-auth-group > label {
+  display: none;
+}
+
+.api-key-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.api-key-input:disabled {
+  background-color: var(--surface);
+  cursor: not-allowed;
+}
+
+.response-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.copy-button {
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.copy-button:hover {
+  background: var(--primary);
+  color: white;
+  opacity: 1;
+}
+
+/* Add main response panel styling */
+.response-panel {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.response-panel .bullet {
+  margin: 4px 0 4px 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.response-panel .content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Markdown styles */
+.response-panel .content h1,
+.response-panel .content h2,
+.response-panel .content h3,
+.response-panel .content h4,
+.response-panel .content h5,
+.response-panel .content h6 {
+  margin: 16px 0 8px 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.response-panel .content h1 { font-size: 1.4em; }
+.response-panel .content h2 { font-size: 1.3em; }
+.response-panel .content h3 { font-size: 1.2em; }
+.response-panel .content h4 { font-size: 1.1em; }
+.response-panel .content h5,
+.response-panel .content h6 { font-size: 1em; }
+
+.response-panel .content p {
+  margin: 8px 0;
+}
+
+.response-panel .content ul,
+.response-panel .content ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.response-panel .content li {
+  margin: 4px 0;
+}
+
+.response-panel .content a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--primary);
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.response-panel .content a:hover {
+  opacity: 1;
+}
+
+.response-panel .content pre {
+  background: var(--background);
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;       /* CSS3 */
+  white-space: -moz-pre-wrap;  /* Firefox */
+  white-space: -pre-wrap;      /* Opera <7 */
+  white-space: -o-pre-wrap;    /* Opera 7 */
+  word-wrap: break-word;       /* IE */
+  max-width: 100%;
+}
+
+.response-panel .content code {
+  background: var(--background);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.response-panel .content blockquote {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.response-panel .content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* Keep emoji styling */
+.response-panel .content .emoji {
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.input-group {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.input-group input[type="checkbox"] {
+  margin-right: 8px;
+} 

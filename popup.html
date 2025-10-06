@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>URL Webhook Sender</title>
+  <style>
+    :root {
+      --background: #1f1f1f;
+      --surface: #2d2d2d;
+      --primary: #4285f4;
+      --primary-hover: #5494f5;
+      --text: #e0e0e0;
+      --text-secondary: #9e9e9e;
+      --border: #404040;
+      --success: #81c995;
+      --success-bg: rgba(129, 201, 149, 0.1);
+      --error: #f28b82;
+      --error-bg: rgba(242, 139, 130, 0.1);
+    }
+
+    body {
+      width: 500px;
+      height: 600px;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 16px 24px 16px;
+    }
+    
+    .header {
+      position: sticky;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: var(--background);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 -16px 16px -16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .endpoint-selector {
+      flex-grow: 1;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: var(--background);
+    }
+    
+    select {
+      flex-grow: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--background);
+      color: var(--text);
+      font-size: 14px;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23e0e0e0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px top 50%;
+      background-size: 10px auto;
+    }
+    
+    .icon-button {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .icon-button:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .settings-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      opacity: 0.8;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .settings-button:hover {
+      opacity: 1;
+      color: var(--text);
+      border-color: var(--primary);
+    }
+
+    .settings-button svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .settings-panel {
+      display: none;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+    }
+    
+    .settings-panel.visible {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    input, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--background);
+      color: var(--text);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    textarea {
+      height: 120px;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    
+    /* Loading spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--text);
+      border-top-color: transparent;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    .main-button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .main-button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    
+    .main-button:not(:disabled):hover {
+      background: var(--primary-hover);
+    }
+    
+    .response-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .response-toggle input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    
+    .status {
+      margin: 16px 0;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .status.success {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+    
+    .status.error {
+      background: var(--error-bg);
+      color: var(--error);
+    }
+    
+    .response-panel {
+      display: none;
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    
+    .response-panel.visible {
+      display: block;
+    }
+    
+    .response-panel .section {
+      margin: 12px 0;
+    }
+    
+    .response-panel .section:first-child {
+      margin-top: 0;
+    }
+    
+    .response-panel h3 {
+      font-size: 16px;
+      margin: 20px 0 12px 0;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .response-panel h4 {
+      font-size: 14px;
+      margin: 16px 0 8px 0;
+      color: var(--text-secondary);
+    }
+    
+    .response-panel .bullet {
+      margin: 8px 0 8px 12px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border);
+      color: var(--text);
+    }
+    
+    .response-panel .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+    
+    .response-panel .highlight {
+      color: var(--primary);
+      font-weight: 500;
+    }
+    
+    .response-panel .emphasis {
+      color: var(--text-secondary);
+      font-style: normal;
+    }
+    
+    .response-panel .emoji {
+      display: inline-block;
+      margin-right: 4px;
+    }
+    
+    .response-panel .link {
+      color: var(--primary);
+      text-decoration: none;
+      border-bottom: 1px solid var(--primary);
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+    }
+    
+    .response-panel .link:hover {
+      opacity: 1;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--background);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    .history-panel {
+      display: none;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+    }
+    
+    .history-panel.visible {
+      display: block;
+    }
+
+    .history-header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .history-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--background);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0 0 4px 0;
+    }
+
+    .search-container svg {
+      width: 14px;
+      height: 14px;
+      color: var(--text-secondary);
+    }
+
+    .search-input {
+      border: none;
+      background: none;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      font-size: 13px;
+    }
+
+    .search-input:focus {
+      outline: none;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .history-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .history-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--background);
+      padding: 2px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .history-tab {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .history-tab.active {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      padding: 12px;
+      background: var(--background);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .history-item:hover {
+      border-color: var(--primary);
+    }
+
+    .history-item:hover .history-item-delete,
+    .history-item:hover .history-item-copy {
+      opacity: 1;
+    }
+
+    .history-item-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .history-item-delete,
+    .history-item-copy {
+      padding: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      opacity: 0;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .history-item-copy:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .history-item-delete:hover {
+      background: var(--error-bg);
+      color: var(--error);
+    }
+
+    .history-item-content {
+      padding-right: 80px;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13px;
+      min-height: 24px;
+      align-items: center;
+    }
+
+    .history-item-title {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .history-item-time {
+      color: var(--text-secondary);
+    }
+
+    .history-item-url {
+      font-size: 13px;
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    .history-item-response {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+
+    .history-item-response.visible {
+      display: block;
+    }
+
+    .truncation-warning {
+      margin-top: 8px;
+      padding: 8px;
+      background: var(--error-bg);
+      color: var(--error);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .history-settings {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .secondary-button {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .danger-button {
+      background: var(--error-bg);
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    .danger-button:hover {
+      background: var(--error);
+      color: white;
+    }
+
+    .history-pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .pagination-button {
+      padding: 8px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .pagination-button:hover {
+      color: var(--primary);
+    }
+
+    .pagination-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination-info {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <div class="header">
+      <div class="endpoint-selector">
+        <select id="endpointSelect">
+          <option value="">Select Endpoint...</option>
+        </select>
+        <button class="icon-button" id="newEndpoint" title="Add Endpoint">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="icon-button" id="deleteButton" title="Remove Endpoint">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="header-actions">
+        <button class="settings-button" id="toggleSettings" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5ZM4 8C4 5.79086 5.79086 4 8 4C10.2091 4 12 5.79086 12 8C12 10.2091 10.2091 12 8 12C5.79086 12 4 10.2091 4 8Z" fill="currentColor"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.34375 0C8.15463 0 8 0.154633 8 0.34375V2.65625C8 2.84537 8.15463 3 8.34375 3H9.65625C9.84537 3 10 2.84537 10 2.65625V0.34375C10 0.154633 9.84537 0 9.65625 0H8.34375ZM8.34375 13C8.15463 13 8 13.1546 8 13.3438V15.6562C8 15.8454 8.15463 16 8.34375 16H9.65625C9.84537 16 10 15.8454 10 15.6562V13.3438C10 13.1546 9.84537 13 9.65625 13H8.34375Z" fill="currentColor"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3438 8C13.1546 8 13 8.15463 13 8.34375V9.65625C13 9.84537 13.1546 10 13.3438 10H15.6562C15.8454 10 16 9.84537 16 9.65625V8.34375C16 8.15463 15.8454 8 15.6562 8H13.3438ZM0.34375 8C0.154633 8 0 8.15463 0 8.34375V9.65625C0 9.84537 0.154633 10 0.34375 10H2.65625C2.84537 10 3 9.84537 3 9.65625V8.34375C3 8.15463 2.84537 8 2.65625 8H0.34375Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="settings-button" id="toggleHistory" title="History">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M8 4.5V8L10.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="history-panel" id="historyPanel">
+      <div class="history-header">
+        <div class="history-top">
+          <div class="history-tabs">
+            <button class="history-tab active" data-tab="recent">Recent</button>
+            <button class="history-tab" data-tab="all">All History</button>
+          </div>
+          <div class="history-controls">
+            <button class="secondary-button" id="exportHistory">
+              Export
+            </button>
+            <button class="secondary-button danger-button" id="clearHistory">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="search-container">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M13 13L9 9M10.3333 5.66667C10.3333 8.244 8.244 10.3333 5.66667 10.3333C3.08934 10.3333 1 8.244 1 5.66667C1 3.08934 3.08934 1 5.66667 1C8.244 1 10.3333 3.08934 10.3333 5.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <input type="text" class="search-input" id="historySearch" placeholder="Search history...">
+        </div>
+      </div>
+      
+      <div class="history-list" id="historyList">
+        <!-- History items will be inserted here -->
+      </div>
+
+      <div class="history-pagination" id="historyPagination">
+        <button class="pagination-button" id="prevPage" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <span class="pagination-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+        <button class="pagination-button" id="nextPage" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="history-settings">
+        <div class="form-group">
+          <label for="historySize">Maximum History Size</label>
+          <select id="historySize">
+            <option value="5">5 items</option>
+            <option value="10">10 items</option>
+            <option value="20">20 items</option>
+            <option value="50">50 items</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+      <div class="form-group">
+        <label for="endpointName">Endpoint Name</label>
+        <input type="text" id="endpointName" placeholder="e.g., Notes App">
+      </div>
+
+      <div class="form-group">
+        <label for="webhookUrl">Webhook URL</label>
+        <input type="url" id="webhookUrl" placeholder="https://...">
+      </div>
+      
+      <div class="form-group api-auth-group">
+        <div class="toggle-group">
+          <input type="checkbox" id="useApiKey">
+          <label for="useApiKey">Use API Key Authentication</label>
+        </div>
+        <input type="password" id="apiKey" placeholder="Enter API Key" class="api-key-input">
+      </div>
+      
+      <div class="form-group">
+        <label for="payloadTemplate">Payload Template (JSON)</label>
+        <textarea id="payloadTemplate"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label>Response Handling</label>
+        <div class="checkbox-group">
+          <div class="input-group">
+            <input type="checkbox" id="showFullResponse" />
+            <label for="showFullResponse">Show detailed response</label>
+          </div>
+          <div class="input-group">
+            <input type="checkbox" id="showNotification" />
+            <label for="showNotification">Show notification when response received</label>
+          </div>
+        </div>
+      </div>
+
+      <button class="main-button" id="saveButton">Save Settings</button>
+    </div>
+
+    <button class="main-button" id="sendButton">
+      <div class="spinner"></div>
+      <span>Send Current URL</span>
+    </button>
+    
+    <div id="status" class="status"></div>
+    <div id="responsePanel" class="response-panel"></div>
+  </div>
+
+  <script src="lib/marked.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
