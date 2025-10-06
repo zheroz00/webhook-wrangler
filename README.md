@@ -2,6 +2,23 @@
 
 A powerful Chrome extension for managing and sending webpage URLs to webhooks with customizable payloads, detailed response tracking, and comprehensive history management.
 
+## Screenshots
+
+### Main Interface
+![WebHook Wrangler Main Interface](ww-main.png)
+
+The main popup interface where you can select endpoints and send the current webpage URL to your configured webhooks.
+
+### Endpoint Configuration
+![Endpoint Configuration](ww-config.png)
+
+Easy-to-use configuration panel for setting up multiple webhook endpoints with custom names, URLs, API keys, and JSON payload templates.
+
+### Response Summary
+![Response Summary Example](ww-summary.png)
+
+Detailed response viewing with smart formatting for JSON, markdown rendering, and comprehensive history tracking with search functionality.
+
 ## Features
 
 ### 🎯 Multiple Endpoint Management
