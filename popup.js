@@ -1,31 +1,48 @@
 // Constants for storage management
 const STORAGE_LIMITS = {
-  MAX_RESPONSE_SIZE: 4000, // 4KB per response item to be safe
-  MAX_HISTORY_SIZE: 50,    // Maximum number of history items allowed
-  MAX_ITEM_SIZE: 8000,     // 8KB per history item total
-  STORAGE_QUOTA: 100000,   // Chrome sync storage quota ~100KB
-  LOCAL_STORAGE_QUOTA: 5242880 // Chrome local storage quota ~5MB
+  MAX_RESPONSE_SIZE: 4000,
+  MAX_HISTORY_SIZE: 50,
+  MAX_ITEM_SIZE: 8000,
+  STORAGE_QUOTA: 100000,
+  LOCAL_STORAGE_QUOTA: 5242880
+};
+
+const STORAGE_KEYS = {
+  LAST_ENDPOINT: 'lastSelectedEndpoint',
+  ENDPOINTS: 'endpoints',
+  HISTORY: 'history',
+  HISTORY_SETTINGS: 'historySettings'
+};
+
+const DEFAULT_PAYLOAD = {
+  "URL": "{url}",
+  "timestamp": "{timestamp}",
+  "title": "{title}"
+};
+
+const DEFAULT_HISTORY_SETTINGS = {
+  maxItems: 20,
+  itemsPerPage: 10,
+  currentPage: 1
 };
 
 // Storage management functions
 async function getStorageSize(storageType = 'sync') {
-  const data = await (storageType === 'sync' ? 
-    chrome.storage.sync.get(null) : 
+  const data = await (storageType === 'sync' ?
+    chrome.storage.sync.get(null) :
     chrome.storage.local.get(null));
   return new TextEncoder().encode(JSON.stringify(data)).length;
 }
 
 async function trimHistoryIfNeeded(currentHistory = [], storageType = 'local') {
   if (!currentHistory.length) return currentHistory;
-  
-  // First try to trim large responses in history items
+
   const trimmedHistory = currentHistory.map(item => {
     if (!item.responseData) return item;
-    
+
     const itemSize = new TextEncoder().encode(JSON.stringify(item)).length;
     if (itemSize <= STORAGE_LIMITS.MAX_ITEM_SIZE) return item;
-    
-    // Trim response data if too large
+
     const trimmedItem = { ...item };
     if (typeof item.responseData === 'string') {
       trimmedItem.responseData = item.responseData.slice(0, STORAGE_LIMITS.MAX_RESPONSE_SIZE) + '... (truncated)';
@@ -38,304 +55,202 @@ async function trimHistoryIfNeeded(currentHistory = [], storageType = 'local') {
     trimmedItem.truncated = true;
     return trimmedItem;
   });
-  
-  // If still too large, remove oldest items
+
   let currentSize = await getStorageSize(storageType);
-  const quota = storageType === 'sync' ? 
-    STORAGE_LIMITS.STORAGE_QUOTA * 0.9 : 
+  const quota = storageType === 'sync' ?
+    STORAGE_LIMITS.STORAGE_QUOTA * 0.9 :
     STORAGE_LIMITS.LOCAL_STORAGE_QUOTA * 0.9;
-    
+
   while (currentSize > quota && trimmedHistory.length > 5) {
-    trimmedHistory.pop(); // Remove oldest item
+    trimmedHistory.pop();
     currentSize = new TextEncoder().encode(JSON.stringify(trimmedHistory)).length;
   }
-  
+
   return trimmedHistory;
 }
 
-const DEFAULT_PAYLOAD = {
-  "URL": "{url}",
-  "timestamp": "{timestamp}",
-  "title": "{title}"
-};
-
-// Remove the old MAX_RESPONSE_SIZE and MAX_HISTORY_ITEMS constants since they're now in STORAGE_LIMITS
-const STORAGE_KEYS = {
-  LAST_ENDPOINT: 'lastSelectedEndpoint',
-  ENDPOINTS: 'endpoints',
-  HISTORY: 'history',
-  HISTORY_SETTINGS: 'historySettings'
-};
-
 // DOM Elements
-const endpointSelect = document.getElementById('endpointSelect');
-const endpointNameInput = document.getElementById('endpointName');
-const webhookUrlInput = document.getElementById('webhookUrl');
-const payloadTemplateInput = document.getElementById('payloadTemplate');
-const useApiKeyToggle = document.getElementById('useApiKey');
-const apiKeyInput = document.getElementById('apiKey');
-const saveButton = document.getElementById('saveButton');
-const deleteButton = document.getElementById('deleteButton');
-const sendButton = document.getElementById('sendButton');
-const newEndpointButton = document.getElementById('newEndpoint');
-const statusDiv = document.getElementById('status');
-const settingsPanel = document.getElementById('settingsPanel');
-const toggleSettings = document.getElementById('toggleSettings');
-const showFullResponse = document.getElementById('showFullResponse');
-const showNotification = document.getElementById('showNotification');
-const responsePanel = document.getElementById('responsePanel');
-const historyBadge = document.getElementById('historyBadge');
+const elements = {
+  // Header
+  endpointSelect: document.getElementById('endpointSelect'),
+  sendButton: document.getElementById('sendButton'),
+  newEndpoint: document.getElementById('newEndpoint'),
+  toggleHistory: document.getElementById('toggleHistory'),
+  historyBadge: document.getElementById('historyBadge'),
 
-// History Elements
-const historyPanel = document.getElementById('historyPanel');
-const toggleHistory = document.getElementById('toggleHistory');
-const historyList = document.getElementById('historyList');
-const historySizeSelect = document.getElementById('historySize');
-const exportHistory = document.getElementById('exportHistory');
-const clearHistory = document.getElementById('clearHistory');
-const historyTabs = document.querySelectorAll('.history-tab');
+  // Main Content
+  emptyState: document.getElementById('emptyState'),
+  emptyStateNewBtn: document.getElementById('emptyStateNewBtn'),
 
-// Add history search element
-const historySearch = document.getElementById('historySearch');
+  // Endpoint Card
+  endpointCard: document.getElementById('endpointCard'),
+  cardEndpointName: document.getElementById('cardEndpointName'),
+  cardWebhookUrl: document.getElementById('cardWebhookUrl'),
+  cardAuthStatus: document.getElementById('cardAuthStatus'),
+  cardAuthText: document.getElementById('cardAuthText'),
+  editEndpoint: document.getElementById('editEndpoint'),
+  deleteEndpoint: document.getElementById('deleteEndpoint'),
 
-// Add pagination elements
-const prevPageButton = document.getElementById('prevPage');
-const nextPageButton = document.getElementById('nextPage');
-const currentPageSpan = document.getElementById('currentPage');
-const totalPagesSpan = document.getElementById('totalPages');
+  // Settings Panel
+  settingsPanel: document.getElementById('settingsPanel'),
+  settingsTitle: document.getElementById('settingsTitle'),
+  closeSettings: document.getElementById('closeSettings'),
+  cancelSettings: document.getElementById('cancelSettings'),
+  endpointName: document.getElementById('endpointName'),
+  webhookUrl: document.getElementById('webhookUrl'),
+  useApiKey: document.getElementById('useApiKey'),
+  apiKeyGroup: document.getElementById('apiKeyGroup'),
+  apiKey: document.getElementById('apiKey'),
+  payloadTemplate: document.getElementById('payloadTemplate'),
+  showFullResponse: document.getElementById('showFullResponse'),
+  showNotification: document.getElementById('showNotification'),
+  saveButton: document.getElementById('saveButton'),
 
-// Default history settings
-const DEFAULT_HISTORY_SETTINGS = {
-  maxItems: 20,
-  currentTab: 'recent',
-  itemsPerPage: 10,
-  currentPage: 1
+  // Status & Response
+  status: document.getElementById('status'),
+  responsePanel: document.getElementById('responsePanel'),
+  responseContent: document.getElementById('responseContent'),
+  copyResponse: document.getElementById('copyResponse'),
+
+  // History Panel
+  historyOverlay: document.getElementById('historyOverlay'),
+  historyPanel: document.getElementById('historyPanel'),
+  closeHistory: document.getElementById('closeHistory'),
+  historySearch: document.getElementById('historySearch'),
+  historyList: document.getElementById('historyList'),
+  historySize: document.getElementById('historySize'),
+  exportHistory: document.getElementById('exportHistory'),
+  clearHistory: document.getElementById('clearHistory'),
+  prevPage: document.getElementById('prevPage'),
+  nextPage: document.getElementById('nextPage'),
+  currentPage: document.getElementById('currentPage'),
+  totalPages: document.getElementById('totalPages')
 };
 
-// Load saved endpoints and settings when popup opens
+// State
+let isCreatingNew = false;
+let currentResponseData = null;
+
+// Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-  // Migrate history from sync to local storage if needed
   await migrateHistoryToLocalStorage();
-  
   await loadEndpoints();
-  
-  // Load history settings
+
   const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get('historySettings');
-  historySizeSelect.value = historySettings.maxItems;
+  elements.historySize.value = historySettings.maxItems;
   await loadHistory();
+
+  initEventListeners();
 });
 
-// Add event listeners
-endpointSelect.addEventListener('change', async () => {
-  await loadSelectedEndpoint();
-  // Save the selected endpoint
-  if (endpointSelect.value) {
-    await chrome.storage.sync.set({ [STORAGE_KEYS.LAST_ENDPOINT]: endpointSelect.value });
-  }
-  // Update button states
-  updateActionButtonStates();
-});
-saveButton.addEventListener('click', saveEndpoint);
-deleteButton.addEventListener('click', deleteEndpoint);
-sendButton.addEventListener('click', sendCurrentUrl);
-newEndpointButton.addEventListener('click', createNewEndpoint);
-toggleSettings.addEventListener('click', () => {
-  settingsPanel.classList.toggle('visible');
-  historyPanel.classList.remove('visible');
-});
-showFullResponse.addEventListener('change', async (e) => {
-  const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
-  const selectedEndpoint = endpointSelect.value;
-  
-  if (selectedEndpoint && endpoints[selectedEndpoint]) {
-    endpoints[selectedEndpoint].showDetailedResponse = e.target.checked;
-    await chrome.storage.sync.set({ endpoints });
-  }
-  
-  if (!e.target.checked) {
-    responsePanel.classList.remove('visible');
-  }
-});
+function initEventListeners() {
+  // Header actions
+  elements.endpointSelect.addEventListener('change', handleEndpointChange);
+  elements.sendButton.addEventListener('click', sendCurrentUrl);
+  elements.newEndpoint.addEventListener('click', openNewEndpoint);
+  elements.emptyStateNewBtn.addEventListener('click', openNewEndpoint);
 
-// Toggle history panel
-toggleHistory.addEventListener('click', () => {
-  historyPanel.classList.toggle('visible');
-  settingsPanel.classList.remove('visible');
-});
+  // Endpoint card actions
+  elements.editEndpoint.addEventListener('click', openEditEndpoint);
+  elements.deleteEndpoint.addEventListener('click', deleteEndpoint);
 
-// Handle history size change
-historySizeSelect.addEventListener('change', async () => {
-  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get('historySettings');
-  const newSettings = {
-    ...historySettings,
-    maxItems: parseInt(historySizeSelect.value)
-  };
-  await chrome.storage.sync.set({ historySettings: newSettings });
-  await loadHistory();
-});
+  // Settings panel
+  elements.closeSettings.addEventListener('click', closeSettingsPanel);
+  elements.cancelSettings.addEventListener('click', closeSettingsPanel);
+  elements.saveButton.addEventListener('click', saveEndpoint);
+  elements.useApiKey.addEventListener('change', toggleApiKeyInput);
 
-// Handle history tabs
-historyTabs.forEach(tab => {
-  tab.addEventListener('click', async () => {
-    historyTabs.forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get('historySettings');
-    const newSettings = {
-      ...historySettings,
-      currentTab: tab.dataset.tab
-    };
-    await chrome.storage.sync.set({ historySettings: newSettings });
-    await loadHistory();
-  });
-});
+  // History panel
+  elements.toggleHistory.addEventListener('click', openHistoryPanel);
+  elements.historyOverlay.addEventListener('click', closeHistoryPanel);
+  elements.closeHistory.addEventListener('click', closeHistoryPanel);
+  elements.historySearch.addEventListener('input', handleHistorySearch);
+  elements.historySize.addEventListener('change', handleHistorySizeChange);
+  elements.exportHistory.addEventListener('click', exportHistoryToMarkdown);
+  elements.clearHistory.addEventListener('click', handleClearHistory);
+  elements.prevPage.addEventListener('click', goToPrevPage);
+  elements.nextPage.addEventListener('click', goToNextPage);
 
-// Export history
-exportHistory.addEventListener('click', async () => {
-  const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-  const markdown = generateHistoryMarkdown(history);
-  
-  // Create blob and download
-  const blob = new Blob([markdown], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'webhook-history.md';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-// Clear history
-clearHistory.addEventListener('click', async () => {
-  if (confirm('Are you sure you want to clear all history?')) {
-    await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: [] });
-    await loadHistory();
-  }
-});
-
-// Add search functionality
-historySearch.addEventListener('input', async () => {
-  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-  historySettings.currentPage = 1; // Reset to first page on search
-  await chrome.storage.sync.set({ historySettings });
-  await loadHistory();
-});
-
-// Add API key toggle handler
-useApiKeyToggle.addEventListener('change', (e) => {
-  apiKeyInput.disabled = !e.target.checked;
-  if (!e.target.checked) {
-    apiKeyInput.value = '';
-  }
-});
-
-// Add pagination event listeners
-prevPageButton.addEventListener('click', async () => {
-  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-  if (historySettings.currentPage > 1) {
-    historySettings.currentPage--;
-    await chrome.storage.sync.set({ historySettings });
-    await loadHistory();
-  }
-});
-
-// Handle pagination
-nextPageButton.addEventListener('click', async () => {
-  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-  const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-  const totalPages = Math.ceil(history.length / historySettings.itemsPerPage);
-  
-  if (historySettings.currentPage < totalPages) {
-    historySettings.currentPage++;
-    await chrome.storage.sync.set({ historySettings });
-    await loadHistory();
-  }
-});
-
-// Update event listeners for the new showNotification checkbox
-showNotification.addEventListener('change', async (e) => {
-  const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
-  const selectedEndpoint = endpointSelect.value;
-  
-  if (selectedEndpoint && endpoints[selectedEndpoint]) {
-    endpoints[selectedEndpoint].showNotification = e.target.checked;
-    await chrome.storage.sync.set({ endpoints });
-  }
-});
-
-// Update action button states based on endpoint selection
-function updateActionButtonStates() {
-  const hasEndpoint = endpointSelect.value !== '';
-  toggleSettings.disabled = !hasEndpoint;
-  deleteButton.disabled = !hasEndpoint;
-  sendButton.disabled = !hasEndpoint;
+  // Response panel
+  elements.copyResponse.addEventListener('click', copyCurrentResponse);
 }
 
+// Endpoint Management
 async function loadEndpoints() {
   try {
     const { [STORAGE_KEYS.ENDPOINTS]: endpoints = {} } = await chrome.storage.sync.get(STORAGE_KEYS.ENDPOINTS);
     const { [STORAGE_KEYS.LAST_ENDPOINT]: lastEndpoint } = await chrome.storage.sync.get(STORAGE_KEYS.LAST_ENDPOINT);
 
-    endpointSelect.innerHTML = '<option value="">Select Endpoint...</option>';
+    elements.endpointSelect.innerHTML = '<option value="">Select Endpoint...</option>';
 
     Object.keys(endpoints).forEach(name => {
       const option = document.createElement('option');
       option.value = name;
       option.textContent = name;
-      endpointSelect.appendChild(option);
+      elements.endpointSelect.appendChild(option);
     });
 
-    if (Object.keys(endpoints).length > 0) {
-      // Use last selected endpoint if it exists, otherwise use first endpoint
+    const hasEndpoints = Object.keys(endpoints).length > 0;
+
+    if (hasEndpoints) {
       const endpointToSelect = lastEndpoint && endpoints[lastEndpoint] ?
         lastEndpoint :
         Object.keys(endpoints)[0];
 
-      endpointSelect.value = endpointToSelect;
+      elements.endpointSelect.value = endpointToSelect;
       await loadSelectedEndpoint();
+      showEndpointCard();
     } else {
-      payloadTemplateInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
+      showEmptyState();
     }
 
-    // Update button states
-    updateActionButtonStates();
+    updateSendButtonState();
   } catch (error) {
     showStatus('Error loading endpoints: ' + error.message, false);
   }
 }
 
+async function handleEndpointChange() {
+  if (elements.endpointSelect.value) {
+    await chrome.storage.sync.set({ [STORAGE_KEYS.LAST_ENDPOINT]: elements.endpointSelect.value });
+    await loadSelectedEndpoint();
+    showEndpointCard();
+  } else {
+    hideEndpointCard();
+  }
+  updateSendButtonState();
+  closeSettingsPanel();
+}
+
 async function loadSelectedEndpoint() {
   try {
-    if (!endpointSelect.value) return;
-    
+    if (!elements.endpointSelect.value) return;
+
     const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
-    const endpoint = endpoints[endpointSelect.value];
-    
+    const endpoint = endpoints[elements.endpointSelect.value];
+
     if (endpoint) {
-      endpointNameInput.value = endpoint.name || '';
-      webhookUrlInput.value = endpoint.webhookUrl || '';
-      payloadTemplateInput.value = endpoint.payloadTemplate || JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-      
-      // Set API Key toggle and field
-      useApiKeyToggle.checked = endpoint.useApiKey || false;
-      apiKeyInput.value = endpoint.apiKey || '';
-      apiKeyInput.disabled = !useApiKeyToggle.checked;
-      
-      // Set response display toggle
-      showFullResponse.checked = endpoint.showDetailedResponse || false;
-      
-      // Set notification toggle
-      showNotification.checked = endpoint.showNotification || false;
-    } else {
-      endpointNameInput.value = '';
-      webhookUrlInput.value = '';
-      payloadTemplateInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-      useApiKeyToggle.checked = false;
-      apiKeyInput.value = '';
-      apiKeyInput.disabled = true;
-      showFullResponse.checked = false;
-      showNotification.checked = false;
+      // Update card display
+      elements.cardEndpointName.textContent = endpoint.name || elements.endpointSelect.value;
+      elements.cardWebhookUrl.textContent = endpoint.webhookUrl || 'Not configured';
+
+      if (endpoint.useApiKey) {
+        elements.cardAuthStatus.className = 'badge-indicator success';
+        elements.cardAuthText.textContent = 'API Key Enabled';
+      } else {
+        elements.cardAuthStatus.className = 'badge-indicator warning';
+        elements.cardAuthText.textContent = 'No API Key';
+      }
+
+      // Update form fields for editing
+      elements.endpointName.value = endpoint.name || '';
+      elements.webhookUrl.value = endpoint.webhookUrl || '';
+      elements.payloadTemplate.value = endpoint.payloadTemplate || JSON.stringify(DEFAULT_PAYLOAD, null, 2);
+      elements.useApiKey.checked = endpoint.useApiKey || false;
+      elements.apiKey.value = endpoint.apiKey || '';
+      elements.apiKeyGroup.style.display = endpoint.useApiKey ? 'block' : 'none';
+      elements.showFullResponse.checked = endpoint.showDetailedResponse || false;
+      elements.showNotification.checked = endpoint.showNotification || false;
     }
   } catch (error) {
     console.error('Error loading endpoint:', error);
@@ -343,60 +258,83 @@ async function loadSelectedEndpoint() {
   }
 }
 
-function createNewEndpoint() {
-  endpointSelect.value = '';
-  endpointNameInput.value = '';
-  webhookUrlInput.value = '';
-  payloadTemplateInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-  showFullResponse.checked = true;
-  useApiKeyToggle.checked = false;
-  apiKeyInput.value = '';
-  apiKeyInput.disabled = true;
-  settingsPanel.classList.add('visible');
-  historyPanel.classList.remove('visible');
-  updateActionButtonStates();
+function openNewEndpoint() {
+  isCreatingNew = true;
+  elements.settingsTitle.textContent = 'New Endpoint';
+
+  // Clear form
+  elements.endpointName.value = '';
+  elements.webhookUrl.value = '';
+  elements.payloadTemplate.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
+  elements.useApiKey.checked = false;
+  elements.apiKey.value = '';
+  elements.apiKeyGroup.style.display = 'none';
+  elements.showFullResponse.checked = true;
+  elements.showNotification.checked = false;
+
+  hideEndpointCard();
+  hideEmptyState();
+  elements.settingsPanel.classList.add('visible');
+}
+
+function openEditEndpoint() {
+  isCreatingNew = false;
+  elements.settingsTitle.textContent = 'Edit Endpoint';
+  elements.settingsPanel.classList.add('visible');
+  elements.endpointCard.style.display = 'none';
+}
+
+function closeSettingsPanel() {
+  elements.settingsPanel.classList.remove('visible');
+
+  const hasEndpoints = elements.endpointSelect.options.length > 1;
+  if (hasEndpoints && elements.endpointSelect.value) {
+    showEndpointCard();
+  } else if (!hasEndpoints) {
+    showEmptyState();
+  }
 }
 
 async function saveEndpoint() {
   try {
-    const endpointName = endpointNameInput.value.trim();
-    
+    const endpointName = elements.endpointName.value.trim();
+
     if (!endpointName) {
       throw new Error('Endpoint name is required');
     }
-    
-    if (!webhookUrlInput.value.trim()) {
+
+    if (!elements.webhookUrl.value.trim()) {
       throw new Error('Webhook URL is required');
     }
-    
+
     let payloadJSON;
     try {
-      payloadJSON = JSON.parse(payloadTemplateInput.value);
+      payloadJSON = JSON.parse(elements.payloadTemplate.value);
       if (typeof payloadJSON !== 'object' || payloadJSON === null) {
         throw new Error('Payload must be a JSON object');
       }
     } catch (jsonError) {
       throw new Error('Invalid JSON payload: ' + jsonError.message);
     }
-    
+
     const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
     endpoints[endpointName] = {
       name: endpointName,
-      webhookUrl: webhookUrlInput.value.trim(),
-      payloadTemplate: payloadTemplateInput.value,
-      useApiKey: useApiKeyToggle.checked,
-      apiKey: apiKeyInput.value,
-      showDetailedResponse: showFullResponse.checked,
-      showNotification: showNotification.checked
+      webhookUrl: elements.webhookUrl.value.trim(),
+      payloadTemplate: elements.payloadTemplate.value,
+      useApiKey: elements.useApiKey.checked,
+      apiKey: elements.apiKey.value,
+      showDetailedResponse: elements.showFullResponse.checked,
+      showNotification: elements.showNotification.checked
     };
-    
+
     await chrome.storage.sync.set({ endpoints });
     await chrome.storage.sync.set({ [STORAGE_KEYS.LAST_ENDPOINT]: endpointName });
-    
-    // Update dropdown
+
     await loadEndpoints();
-    endpointSelect.value = endpointName;
-    
+    elements.endpointSelect.value = endpointName;
+
+    closeSettingsPanel();
     showStatus('Endpoint saved successfully!', true);
   } catch (error) {
     console.error('Error saving endpoint:', error);
@@ -406,107 +344,192 @@ async function saveEndpoint() {
 
 async function deleteEndpoint() {
   try {
-    if (!endpointSelect.value) {
+    if (!elements.endpointSelect.value) {
       throw new Error('Please select an endpoint to delete');
     }
-    
-    // Add confirmation dialog
-    if (!confirm(`Are you sure you want to delete the endpoint "${endpointSelect.value}"?`)) {
-      return; // Exit if user cancels
+
+    if (!confirm(`Are you sure you want to delete "${elements.endpointSelect.value}"?`)) {
+      return;
     }
-    
+
     const { [STORAGE_KEYS.ENDPOINTS]: endpoints = {} } = await chrome.storage.sync.get(STORAGE_KEYS.ENDPOINTS);
-    const deletedEndpoint = endpointSelect.value;
+    const deletedEndpoint = elements.endpointSelect.value;
     delete endpoints[deletedEndpoint];
-    
-    // Remove last selected endpoint if it was deleted
+
     const { [STORAGE_KEYS.LAST_ENDPOINT]: lastEndpoint } = await chrome.storage.sync.get(STORAGE_KEYS.LAST_ENDPOINT);
     if (lastEndpoint === deletedEndpoint) {
       await chrome.storage.sync.remove(STORAGE_KEYS.LAST_ENDPOINT);
     }
-    
+
     await chrome.storage.sync.set({ [STORAGE_KEYS.ENDPOINTS]: endpoints });
     await loadEndpoints();
-    
+
     showStatus('Endpoint deleted successfully!', true);
   } catch (error) {
     showStatus('Error deleting endpoint: ' + error.message, false);
   }
 }
 
-function showStatus(message, success) {
-  statusDiv.textContent = message;
-  statusDiv.className = 'status ' + (success ? 'success' : 'error');
-  statusDiv.style.display = 'block';
-  
-  if (!showFullResponse.checked) {
-    setTimeout(() => {
-      statusDiv.style.display = 'none';
-    }, 3000);
+function toggleApiKeyInput() {
+  elements.apiKeyGroup.style.display = elements.useApiKey.checked ? 'block' : 'none';
+  if (!elements.useApiKey.checked) {
+    elements.apiKey.value = '';
   }
 }
 
-// Update history badge count
+// UI State Management
+function showEmptyState() {
+  elements.emptyState.style.display = 'flex';
+  elements.endpointCard.style.display = 'none';
+  elements.settingsPanel.classList.remove('visible');
+}
+
+function hideEmptyState() {
+  elements.emptyState.style.display = 'none';
+}
+
+function showEndpointCard() {
+  elements.endpointCard.style.display = 'block';
+  elements.emptyState.style.display = 'none';
+  elements.settingsPanel.classList.remove('visible');
+}
+
+function hideEndpointCard() {
+  elements.endpointCard.style.display = 'none';
+}
+
+function updateSendButtonState() {
+  const hasEndpoint = elements.endpointSelect.value !== '';
+  elements.sendButton.disabled = !hasEndpoint;
+}
+
+function showStatus(message, success) {
+  elements.status.textContent = message;
+  elements.status.className = 'status visible ' + (success ? 'success' : 'error');
+
+  setTimeout(() => {
+    elements.status.classList.remove('visible');
+  }, 3000);
+}
+
+// History Panel
+function openHistoryPanel() {
+  elements.historyOverlay.classList.add('visible');
+  elements.historyPanel.classList.add('visible');
+  loadHistory();
+}
+
+function closeHistoryPanel() {
+  elements.historyOverlay.classList.remove('visible');
+  elements.historyPanel.classList.remove('visible');
+}
+
+async function handleHistorySearch() {
+  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
+  historySettings.currentPage = 1;
+  await chrome.storage.sync.set({ historySettings });
+  await loadHistory();
+}
+
+async function handleHistorySizeChange() {
+  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get('historySettings');
+  const newSettings = {
+    ...historySettings,
+    maxItems: parseInt(elements.historySize.value)
+  };
+  await chrome.storage.sync.set({ historySettings: newSettings });
+  await loadHistory();
+}
+
+async function handleClearHistory() {
+  if (confirm('Are you sure you want to clear all history?')) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: [] });
+    await loadHistory();
+  }
+}
+
+async function goToPrevPage() {
+  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
+  if (historySettings.currentPage > 1) {
+    historySettings.currentPage--;
+    await chrome.storage.sync.set({ historySettings });
+    await loadHistory();
+  }
+}
+
+async function goToNextPage() {
+  const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
+  const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
+  const totalPages = Math.ceil(history.length / historySettings.itemsPerPage);
+
+  if (historySettings.currentPage < totalPages) {
+    historySettings.currentPage++;
+    await chrome.storage.sync.set({ historySettings });
+    await loadHistory();
+  }
+}
+
 function updateHistoryBadge(count) {
   if (count > 0) {
-    historyBadge.textContent = count > 99 ? '99+' : count;
-    historyBadge.style.display = 'block';
+    elements.historyBadge.textContent = count > 99 ? '99+' : count;
+    elements.historyBadge.style.display = 'flex';
   } else {
-    historyBadge.style.display = 'none';
+    elements.historyBadge.style.display = 'none';
   }
 }
 
-// Load and display history
 async function loadHistory() {
-  // Get history from local storage and settings from sync storage
   const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
   const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-  const searchTerm = historySearch.value.toLowerCase();
+  const searchTerm = elements.historySearch.value.toLowerCase();
 
-  // Update badge with total history count
   updateHistoryBadge(history.length);
-  
-  // Filter history based on search term
+
   let filteredHistory = history;
   if (searchTerm) {
-    filteredHistory = history.filter(item => 
+    filteredHistory = history.filter(item =>
       item.endpointName.toLowerCase().includes(searchTerm) ||
       item.url.toLowerCase().includes(searchTerm) ||
       (item.title && item.title.toLowerCase().includes(searchTerm))
     );
   }
-  
-  // Calculate pagination
+
   const totalItems = filteredHistory.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / historySettings.itemsPerPage));
   const currentPage = Math.min(historySettings.currentPage, totalPages);
-  
-  // Update pagination UI
-  currentPageSpan.textContent = currentPage;
-  totalPagesSpan.textContent = totalPages;
-  prevPageButton.disabled = currentPage === 1;
-  nextPageButton.disabled = currentPage === totalPages;
-  
-  // Get items for current page
+
+  elements.currentPage.textContent = currentPage;
+  elements.totalPages.textContent = totalPages;
+  elements.prevPage.disabled = currentPage === 1;
+  elements.nextPage.disabled = currentPage === totalPages;
+
   const startIndex = (currentPage - 1) * historySettings.itemsPerPage;
   const endIndex = Math.min(startIndex + historySettings.itemsPerPage, totalItems);
   const pageItems = filteredHistory.slice(startIndex, endIndex);
-  
-  // Display items
-  historyList.innerHTML = pageItems.length === 0 
-    ? `<div class="history-item">No ${searchTerm ? 'matching ' : ''}history items${searchTerm ? ' found' : ' yet'}</div>`
-    : pageItems.map(item => createHistoryItemHTML(item)).join('');
-    
-  // Add click listeners to history items
-  document.querySelectorAll('.history-item').forEach((item, index) => {
-    // Copy button click
-    const copyBtn = item.querySelector('.history-item-copy');
+
+  if (pageItems.length === 0) {
+    elements.historyList.innerHTML = `
+      <div class="history-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        <p>${searchTerm ? 'No matching history found' : 'No history yet'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  elements.historyList.innerHTML = pageItems.map((item, index) => createHistoryItemHTML(item, index)).join('');
+
+  // Add event listeners to history items
+  document.querySelectorAll('.history-item').forEach((itemEl, index) => {
+    const copyBtn = itemEl.querySelector('.history-copy-btn');
     if (copyBtn) {
       copyBtn.addEventListener('click', async (e) => {
-        e.stopPropagation(); // Prevent item expansion
-        const response = pageItems[index].response;
+        e.stopPropagation();
         try {
-          const formattedText = getFormattedTextContent(response);
+          const formattedText = getFormattedTextContent(pageItems[index].response);
           await navigator.clipboard.writeText(formattedText);
           showStatus('Response copied to clipboard!', true);
         } catch (error) {
@@ -515,41 +538,29 @@ async function loadHistory() {
       });
     }
 
-    // Delete button click
-    const deleteBtn = item.querySelector('.history-item-delete');
+    const deleteBtn = itemEl.querySelector('.history-delete-btn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', async (e) => {
-        e.stopPropagation(); // Prevent item expansion
+        e.stopPropagation();
         if (confirm('Delete this history item?')) {
           const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-          // Find the actual index in the original history array
-          const actualIndex = history.findIndex(h => 
+          const actualIndex = history.findIndex(h =>
             h.endpointName === pageItems[index].endpointName &&
             h.timestamp === pageItems[index].timestamp
           );
           if (actualIndex !== -1) {
             history.splice(actualIndex, 1);
             await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: history });
-            
-            // Update current page if we're on the last page and it's now empty
-            const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-            const newTotalPages = Math.max(1, Math.ceil((history.length - 1) / historySettings.itemsPerPage));
-            if (historySettings.currentPage > newTotalPages) {
-              historySettings.currentPage = newTotalPages;
-              await chrome.storage.sync.set({ historySettings });
-            }
-            
             await loadHistory();
           }
         }
       });
     }
 
-    // Content click for expansion
-    const content = item.querySelector('.history-item-content');
+    const content = itemEl.querySelector('.history-item-content');
     if (content) {
       content.addEventListener('click', () => {
-        const response = item.querySelector('.history-item-response');
+        const response = itemEl.querySelector('.history-item-response');
         if (response) {
           response.classList.toggle('visible');
         }
@@ -558,35 +569,40 @@ async function loadHistory() {
   });
 }
 
-// Create HTML for history item
-function createHistoryItemHTML(item) {
+function createHistoryItemHTML(item, index) {
   return `
     <div class="history-item">
-      <div class="history-item-actions">
-        <button class="history-item-copy" title="Copy response">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M13.3 4.3h-1.7V2.6c0-.7-.6-1.3-1.3-1.3H2.6c-.7 0-1.3.6-1.3 1.3v7.7c0 .7.6 1.3 1.3 1.3h1.7v1.7c0 .7.6 1.3 1.3 1.3h7.7c.7 0 1.3-.6 1.3-1.3V5.6c0-.7-.6-1.3-1.3-1.3zm-9 6h-1.7V2.6h7.7v1.7H5.6c-.7 0-1.3.6-1.3 1.3v4.7zm9 1.7H5.6V5.6h7.7v6.4z" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="history-item-delete" title="Delete this item">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3 3L13 13M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
       <div class="history-item-content">
         <div class="history-item-header">
-          <span class="history-item-title">${item.endpointName}</span>
+          <span class="history-item-title">${escapeHtml(item.endpointName)}</span>
           <span class="history-item-time">${new Date(item.timestamp).toLocaleString()}</span>
         </div>
-        <div class="history-item-url">${item.url}</div>
+        <div class="history-item-url">${escapeHtml(item.url)}</div>
         <div class="history-item-response">${formatResponse(item.response, item.isResponseTruncated)}</div>
+      </div>
+      <div class="history-item-actions">
+        <button class="btn btn-secondary history-copy-btn">Copy</button>
+        <button class="btn btn-danger history-delete-btn">Delete</button>
       </div>
     </div>
   `;
 }
 
-// Generate markdown for export
+async function exportHistoryToMarkdown() {
+  const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
+  const markdown = generateHistoryMarkdown(history);
+
+  const blob = new Blob([markdown], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'webhook-history.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function generateHistoryMarkdown(history) {
   return `# WebHook Wrangler History
 Generated on ${new Date().toLocaleString()}
@@ -603,11 +619,10 @@ ${JSON.stringify(item.response, null, 2)}
 `).join('\n')}`;
 }
 
-// Update formatResponse to better handle all response types
+// Response Handling
 function formatResponse(response, isResponseTruncated) {
-  if (!response) return '';
-  
-  // Handle array responses and extract summary for YouTube responses
+  if (!response) return '<p class="response-content">No response data</p>';
+
   if (Array.isArray(response)) {
     if (response[0]?.summary) {
       response = response[0].summary;
@@ -616,63 +631,42 @@ function formatResponse(response, isResponseTruncated) {
     }
   }
 
-  // Convert response to string if it's an object
-  const responseText = typeof response === 'object' ? 
-    JSON.stringify(response, null, 2) : 
+  const responseText = typeof response === 'object' ?
+    JSON.stringify(response, null, 2) :
     String(response);
 
-  // Create the copy button
-  const copyButton = `
-    <div class="response-header">
-      <button class="copy-button" title="Copy response">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M13.3 4.3h-1.7V2.6c0-.7-.6-1.3-1.3-1.3H2.6c-.7 0-1.3.6-1.3 1.3v7.7c0 .7.6 1.3 1.3 1.3h1.7v1.7c0 .7.6 1.3 1.3 1.3h7.7c.7 0 1.3-.6 1.3-1.3V5.6c0-.7-.6-1.3-1.3-1.3zm-9 6h-1.7V2.6h7.7v1.7H5.6c-.7 0-1.3.6-1.3 1.3v4.7zm9 1.7H5.6V5.6h7.7v6.4z" fill="currentColor"/>
-        </svg>
-      </button>
-    </div>`;
-
-  // Initialize marked with options
   marked.setOptions({
-    breaks: true,  // Enable line breaks
-    gfm: true,     // Enable GitHub Flavored Markdown
-    headerIds: false // Disable header IDs to prevent conflicts
+    breaks: true,
+    gfm: true,
+    headerIds: false
   });
 
-  // Format the content based on whether it looks like markdown, JSON, or plain text
   let formattedContent;
   try {
-    // Check if it's markdown
     if (responseText.includes('#') || responseText.includes('*') || responseText.includes('```')) {
       formattedContent = marked.parse(responseText);
-    } 
-    // Check if it's JSON
-    else if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
-      formattedContent = `<pre>${responseText}</pre>`;
-    } 
-    // Plain text (like a single sentence)
-    else {
-      formattedContent = `<p>${responseText}</p>`;
+    } else if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+      formattedContent = `<pre>${escapeHtml(responseText)}</pre>`;
+    } else {
+      formattedContent = `<p>${escapeHtml(responseText)}</p>`;
     }
   } catch (error) {
     console.error('Error parsing response:', error);
-    formattedContent = `<p>${responseText}</p>`;
+    formattedContent = `<p>${escapeHtml(responseText)}</p>`;
   }
 
-  let formattedResponse = `${copyButton}<div class="content">${formattedContent}</div>`;
+  let result = `<div class="response-content">${formattedContent}</div>`;
 
-  // Add truncation warning if needed
   if (isResponseTruncated) {
-    formattedResponse += '<div class="truncation-warning">⚠️ Response was truncated due to size limits</div>';
+    result += '<div class="truncation-warning">Response was truncated due to size limits</div>';
   }
 
-  return formattedResponse;
+  return result;
 }
 
-// Simplified to just return the raw text
 function getFormattedTextContent(response) {
   if (!response) return '';
-  
-  // Handle array responses
+
   if (Array.isArray(response)) {
     if (response[0]?.summary) {
       response = response[0].summary;
@@ -681,26 +675,37 @@ function getFormattedTextContent(response) {
     }
   }
 
-  // Return raw text, preserving markdown
-  return typeof response === 'object' ? 
-    JSON.stringify(response, null, 2) : 
+  return typeof response === 'object' ?
+    JSON.stringify(response, null, 2) :
     String(response);
 }
 
-// Add this helper function
+async function copyCurrentResponse() {
+  if (!currentResponseData) {
+    showStatus('No response to copy', false);
+    return;
+  }
+
+  try {
+    const formattedText = getFormattedTextContent(currentResponseData);
+    await navigator.clipboard.writeText(formattedText);
+    showStatus('Response copied to clipboard!', true);
+  } catch (error) {
+    showStatus('Failed to copy response: ' + error.message, false);
+  }
+}
+
 function truncateResponse(responseData) {
   if (!responseData) return { data: null, truncated: false };
-  
-  // For YouTube responses
+
   if (Array.isArray(responseData) && responseData[0]?.summary) {
     const summaryStr = responseData[0].summary;
     if (summaryStr.length > STORAGE_LIMITS.MAX_RESPONSE_SIZE) {
-      // Try to truncate at a markdown section
       const truncateIndex = summaryStr.lastIndexOf('\n## ', STORAGE_LIMITS.MAX_RESPONSE_SIZE - 100);
       return {
         data: [{
           ...responseData[0],
-          summary: truncateIndex > 0 ? 
+          summary: truncateIndex > 0 ?
             summaryStr.slice(0, truncateIndex) + '\n\n... (truncated)' :
             summaryStr.slice(0, STORAGE_LIMITS.MAX_RESPONSE_SIZE - 100) + '... (truncated)'
         }],
@@ -709,11 +714,10 @@ function truncateResponse(responseData) {
     }
     return { data: responseData, truncated: false };
   }
-  
-  // For other responses
-  const responseStr = typeof responseData === 'object' ? 
+
+  const responseStr = typeof responseData === 'object' ?
     JSON.stringify(responseData) : String(responseData);
-    
+
   if (responseStr.length > STORAGE_LIMITS.MAX_RESPONSE_SIZE) {
     if (typeof responseData === 'object') {
       return {
@@ -726,31 +730,28 @@ function truncateResponse(responseData) {
       truncated: true
     };
   }
-  
+
   return { data: responseData, truncated: false };
 }
 
-// Update the sendCurrentUrl function's history handling
+// Send Webhook
 async function sendCurrentUrl() {
   try {
-    if (!endpointSelect.value) {
+    if (!elements.endpointSelect.value) {
       throw new Error('Please select an endpoint');
     }
-    
+
     // Show loading state
-    const spinner = sendButton.querySelector('.spinner');
-    const buttonText = sendButton.querySelector('span');
-    spinner.style.display = 'block';
-    sendButton.disabled = true;
-    buttonText.textContent = 'Sending...';
-    
+    elements.sendButton.classList.add('loading');
+    elements.sendButton.disabled = true;
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
-    const selectedEndpoint = endpoints[endpointSelect.value];
-    
+    const selectedEndpoint = endpoints[elements.endpointSelect.value];
+
     chrome.runtime.sendMessage({
       action: 'sendWebhook',
-      endpoint: endpointSelect.value,
+      endpoint: elements.endpointSelect.value,
       data: {
         url: tab.url,
         title: tab.title
@@ -762,152 +763,106 @@ async function sendCurrentUrl() {
       showNotification: selectedEndpoint.showNotification || false
     }, async response => {
       // Reset button state
-      spinner.style.display = 'none';
-      sendButton.disabled = false;
-      buttonText.textContent = 'Send Current URL';
-      
+      elements.sendButton.classList.remove('loading');
+      elements.sendButton.disabled = false;
+
       if (response.success) {
         showStatus('URL sent successfully!', true);
-        
-        
+        currentResponseData = response.responseData;
+
         try {
-          // Get current history from local storage
           const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-          
-          // Truncate response data
           const { data: truncatedResponse, truncated } = truncateResponse(response.responseData);
-          
-          // Create new history item
+
           const historyItem = {
-            endpointName: endpointSelect.value,
+            endpointName: elements.endpointSelect.value,
             url: tab.url,
             timestamp: new Date().toISOString(),
             response: truncatedResponse,
             isResponseTruncated: truncated
           };
-          
-          // Keep only recent items
+
           const newHistory = [historyItem, ...history].slice(0, STORAGE_LIMITS.MAX_HISTORY_SIZE);
-          
-          // Try to save, if it fails, remove oldest items until it succeeds
+
           while (newHistory.length > 0) {
             try {
               await saveHistory(historyItem);
               break;
             } catch (storageError) {
-              console.warn('Storage error:', storageError); // Debug storage errors
               if (storageError.message.includes('QUOTA_BYTES_PER_ITEM')) {
-                newHistory.pop(); // Remove oldest item
+                newHistory.pop();
                 continue;
               }
-              throw storageError; // Re-throw if it's a different error
+              throw storageError;
             }
           }
         } catch (storageError) {
           console.warn('Failed to save to history:', storageError);
-          // Continue execution even if history save fails
         }
-        
+
         // Show response in panel
-        if (response.responseData && showFullResponse.checked) {
-          const formattedResponse = formatResponse(response.responseData);
-          
-          // Check if responsePanel exists
-          
-          if (responsePanel) {
-            responsePanel.innerHTML = formattedResponse;
-            responsePanel.classList.add('visible');
-            
-            // Add click handler for copy button
-            const copyButton = responsePanel.querySelector('.copy-button');
-            if (copyButton) {
-              copyButton.addEventListener('click', async () => {
-                try {
-                  const formattedText = getFormattedTextContent(response.responseData);
-                  await navigator.clipboard.writeText(formattedText);
-                  showStatus('Response copied to clipboard!', true);
-                } catch (error) {
-                  showStatus('Failed to copy response: ' + error.message, false);
-                }
-              });
-            }
-          } else {
-            console.error('Response panel element not found!');
-          }
+        if (response.responseData && selectedEndpoint.showDetailedResponse) {
+          elements.responseContent.innerHTML = formatResponse(response.responseData);
+          elements.responsePanel.classList.add('visible');
         } else {
-          responsePanel.classList.remove('visible');
+          elements.responsePanel.classList.remove('visible');
         }
-        
-        // Refresh history display if panel is visible
-        if (historyPanel.classList.contains('visible')) {
-          await loadHistory();
-        }
+
+        // Update history badge
+        const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
+        updateHistoryBadge(history.length);
       } else {
         showStatus('Error: ' + response.error, false);
-        if (response.responseData && showFullResponse.checked) {
-          responsePanel.innerHTML = formatResponse(response.responseData);
-          responsePanel.classList.add('visible');
+        if (response.responseData && selectedEndpoint.showDetailedResponse) {
+          elements.responseContent.innerHTML = formatResponse(response.responseData);
+          elements.responsePanel.classList.add('visible');
         }
       }
     });
   } catch (error) {
-    console.error('Error in sendCurrentUrl:', error); // Debug any errors
-    
-    // Reset button state on error
-    const spinner = sendButton.querySelector('.spinner');
-    const buttonText = sendButton.querySelector('span');
-    spinner.style.display = 'none';
-    sendButton.disabled = false;
-    buttonText.textContent = 'Send Current URL';
-    
+    console.error('Error in sendCurrentUrl:', error);
+    elements.sendButton.classList.remove('loading');
+    elements.sendButton.disabled = false;
     showStatus('Error: ' + error.message, false);
   }
 }
 
 async function saveHistory(historyItem) {
   try {
-    // Get history from local storage instead of sync
     const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-    // Still get settings from sync storage
     const { historySettings = DEFAULT_HISTORY_SETTINGS } = await chrome.storage.sync.get(STORAGE_KEYS.HISTORY_SETTINGS);
-    
-    // Add new item and limit to user's selected size
+
     let newHistory = [historyItem, ...history].slice(0, historySettings.maxItems);
-    
-    // Ensure we don't exceed storage limits
     newHistory = await trimHistoryIfNeeded(newHistory, 'local');
-    
-    // Save to local storage instead of sync
+
     await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: newHistory });
-    await loadHistory(); // Refresh the display
   } catch (error) {
     console.error('Error saving history:', error);
     showStatus('Warning: Could not save to history due to storage limits', false);
   }
 }
 
-// Function to migrate history from sync to local storage
 async function migrateHistoryToLocalStorage() {
   try {
-    // Check if we have history in sync storage
     const { history: syncHistory = [] } = await chrome.storage.sync.get('history');
-    
+
     if (syncHistory.length > 0) {
-      
-      // Check if we already have history in local storage
       const { history: localHistory = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
-      
+
       if (localHistory.length === 0) {
-        // Only migrate if local storage is empty to avoid duplicates
         await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: syncHistory });
-        
-        // Clear history from sync storage to free up space
         await chrome.storage.sync.remove('history');
-        
         showStatus('History migrated to local storage for better performance', true);
       }
     }
   } catch (error) {
     console.error('Error migrating history:', error);
   }
+}
+
+// Utility functions
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

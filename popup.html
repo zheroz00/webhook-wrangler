@@ -1,783 +1,249 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>URL Webhook Sender</title>
-  <style>
-    :root {
-      --background: #1f1f1f;
-      --surface: #2d2d2d;
-      --primary: #4285f4;
-      --primary-hover: #5494f5;
-      --text: #e0e0e0;
-      --text-secondary: #9e9e9e;
-      --border: #404040;
-      --success: #81c995;
-      --success-bg: rgba(129, 201, 149, 0.1);
-      --error: #f28b82;
-      --error-bg: rgba(242, 139, 130, 0.1);
-    }
-
-    body {
-      width: 500px;
-      height: 600px;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      margin: 0;
-      background: var(--background);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .main-container {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 0 16px 16px 16px;
-      padding-bottom: 80px; /* Space for fixed action bar */
-    }
-    
-    .header {
-      position: sticky;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 10;
-      background: var(--background);
-      padding: 16px 16px 12px 16px;
-      margin: 0 -16px 0 -16px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .endpoint-selector {
-      width: 100%;
-    }
-
-    .action-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding: 12px 16px;
-      background: var(--background);
-      border-top: 1px solid var(--border);
-      z-index: 20;
-    }
-
-    .action-button {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 8px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-      position: relative;
-    }
-
-    .action-button svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .action-button.primary {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-    }
-
-    .action-button.primary:hover:not(:disabled) {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(66, 133, 244, 0.3);
-    }
-
-    .action-button.secondary:hover:not(:disabled) {
-      border-color: var(--primary);
-      color: var(--primary);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    .action-button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      background: var(--surface);
-    }
-
-    .action-button:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    .badge {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      background: var(--error);
-      color: white;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 5px;
-      border-radius: 10px;
-      min-width: 16px;
-      text-align: center;
-    }
-    
-    select {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--text);
-      font-size: 14px;
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23e0e0e0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px top 50%;
-      background-size: 10px auto;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    select:hover {
-      border-color: var(--primary);
-    }
-
-    select:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
-    }
-    
-    .settings-panel {
-      display: none;
-      padding: 16px;
-      background: var(--surface);
-      border-radius: 8px;
-      margin: 16px 0;
-      border: 1px solid var(--border);
-    }
-    
-    .settings-panel.visible {
-      display: block;
-    }
-    
-    .form-group {
-      margin-bottom: 16px;
-    }
-    
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-    
-    input, textarea {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--background);
-      color: var(--text);
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-    
-    textarea {
-      height: 120px;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-    
-    /* Loading spinner */
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .spinner {
-      display: none;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--text);
-      border-top-color: transparent;
-      border-radius: 50%;
-      margin-right: 8px;
-      animation: spin 0.8s linear infinite;
-    }
-    
-    .main-button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      background: var(--primary);
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .main-button:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
-    
-    .main-button:not(:disabled):hover {
-      background: var(--primary-hover);
-    }
-    
-    .response-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 16px 0;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-    
-    .response-toggle input[type="checkbox"] {
-      width: auto;
-      margin-right: 8px;
-    }
-    
-    .status {
-      margin: 16px 0;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      display: none;
-    }
-    
-    .status.success {
-      background: var(--success-bg);
-      color: var(--success);
-    }
-    
-    .status.error {
-      background: var(--error-bg);
-      color: var(--error);
-    }
-    
-    .response-panel {
-      display: none;
-      margin-top: 16px;
-      padding: 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    
-    .response-panel.visible {
-      display: block;
-    }
-    
-    .response-panel .section {
-      margin: 12px 0;
-    }
-    
-    .response-panel .section:first-child {
-      margin-top: 0;
-    }
-    
-    .response-panel h3 {
-      font-size: 16px;
-      margin: 20px 0 12px 0;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .response-panel h4 {
-      font-size: 14px;
-      margin: 16px 0 8px 0;
-      color: var(--text-secondary);
-    }
-    
-    .response-panel .bullet {
-      margin: 8px 0 8px 12px;
-      padding-left: 12px;
-      border-left: 2px solid var(--border);
-      color: var(--text);
-    }
-    
-    .response-panel .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 16px 0;
-    }
-    
-    .response-panel .highlight {
-      color: var(--primary);
-      font-weight: 500;
-    }
-    
-    .response-panel .emphasis {
-      color: var(--text-secondary);
-      font-style: normal;
-    }
-    
-    .response-panel .emoji {
-      display: inline-block;
-      margin-right: 4px;
-    }
-    
-    .response-panel .link {
-      color: var(--primary);
-      text-decoration: none;
-      border-bottom: 1px solid var(--primary);
-      opacity: 0.8;
-      transition: opacity 0.2s ease;
-    }
-    
-    .response-panel .link:hover {
-      opacity: 1;
-    }
-
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--background);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-secondary);
-    }
-
-    .history-panel {
-      display: none;
-      padding: 16px;
-      background: var(--surface);
-      border-radius: 8px;
-      margin: 16px 0;
-      border: 1px solid var(--border);
-    }
-    
-    .history-panel.visible {
-      display: block;
-    }
-
-    .history-header {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .history-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .search-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      background: var(--background);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      margin: 0 0 4px 0;
-    }
-
-    .search-container svg {
-      width: 14px;
-      height: 14px;
-      color: var(--text-secondary);
-    }
-
-    .search-input {
-      border: none;
-      background: none;
-      padding: 0;
-      margin: 0;
-      width: 100%;
-      font-size: 13px;
-    }
-
-    .search-input:focus {
-      outline: none;
-    }
-
-    .search-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    .history-controls {
-      display: flex;
-      gap: 8px;
-    }
-
-    .history-tabs {
-      display: flex;
-      gap: 2px;
-      background: var(--background);
-      padding: 2px;
-      border-radius: 6px;
-      margin-bottom: 16px;
-    }
-
-    .history-tab {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: none;
-      background: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .history-tab.active {
-      background: var(--surface);
-      color: var(--text);
-    }
-
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .history-item {
-      padding: 12px;
-      background: var(--background);
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
-    }
-
-    .history-item:hover {
-      border-color: var(--primary);
-    }
-
-    .history-item:hover .history-item-delete,
-    .history-item:hover .history-item-copy {
-      opacity: 1;
-    }
-
-    .history-item-actions {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      display: flex;
-      gap: 4px;
-    }
-
-    .history-item-delete,
-    .history-item-copy {
-      padding: 4px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-secondary);
-      opacity: 0;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-    }
-
-    .history-item-copy:hover {
-      background: var(--primary);
-      color: white;
-    }
-
-    .history-item-delete:hover {
-      background: var(--error-bg);
-      color: var(--error);
-    }
-
-    .history-item-content {
-      padding-right: 80px;
-    }
-
-    .history-item-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 13px;
-      min-height: 24px;
-      align-items: center;
-    }
-
-    .history-item-title {
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .history-item-time {
-      color: var(--text-secondary);
-    }
-
-    .history-item-url {
-      font-size: 13px;
-      color: var(--text-secondary);
-      word-break: break-all;
-    }
-
-    .history-item-response {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-      display: none;
-    }
-
-    .history-item-response.visible {
-      display: block;
-    }
-
-    .truncation-warning {
-      margin-top: 8px;
-      padding: 8px;
-      background: var(--error-bg);
-      color: var(--error);
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    .history-settings {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-
-    .secondary-button {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: var(--background);
-      color: var(--text);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .secondary-button:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-
-    .danger-button {
-      background: var(--error-bg);
-      color: var(--error);
-      border-color: var(--error);
-    }
-
-    .danger-button:hover {
-      background: var(--error);
-      color: white;
-    }
-
-    .history-pagination {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 16px;
-    }
-
-    .pagination-button {
-      padding: 8px;
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-secondary);
-      transition: all 0.2s ease;
-    }
-
-    .pagination-button:hover {
-      color: var(--primary);
-    }
-
-    .pagination-button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .pagination-info {
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=420, initial-scale=1.0">
+  <title>WebHook Wrangler</title>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="main-container">
-    <div class="header">
-      <div class="endpoint-selector">
-        <select id="endpointSelect">
-          <option value="">Select Endpoint...</option>
+  <!-- Header -->
+  <header class="header">
+    <div class="endpoint-selector">
+      <select id="endpointSelect">
+        <option value="">Select Endpoint...</option>
+      </select>
+    </div>
+
+    <button class="send-button" id="sendButton" disabled>
+      <div class="spinner"></div>
+      <span class="btn-text">Send</span>
+    </button>
+
+    <div class="header-actions">
+      <button class="icon-button" id="newEndpoint" title="New Endpoint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+      <button class="icon-button" id="toggleHistory" title="History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        <span class="badge" id="historyBadge" style="display: none;">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Empty State (shown when no endpoints) -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+      </svg>
+      <h3>No Endpoints Yet</h3>
+      <p>Create your first webhook endpoint to get started</p>
+      <button class="btn btn-primary" id="emptyStateNewBtn">Create Endpoint</button>
+    </div>
+
+    <!-- Endpoint Info Card -->
+    <div class="endpoint-card" id="endpointCard" style="display: none;">
+      <div class="endpoint-card-header">
+        <div class="endpoint-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-9-9v.01M12 21v.01M16.95 7.05l.01.01M7.05 16.95l.01.01M7.05 7.05l.01.01M16.95 16.95l.01.01"/>
+          </svg>
+          <span id="cardEndpointName">Endpoint Name</span>
+        </div>
+        <div class="endpoint-card-actions">
+          <button class="icon-button" id="editEndpoint" title="Edit Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="icon-button" id="deleteEndpoint" title="Delete Endpoint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="endpoint-card-body">
+        <div class="endpoint-detail">
+          <svg class="endpoint-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>
+            <path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+          </svg>
+          <div class="endpoint-detail-content">
+            <div class="endpoint-detail-label">Webhook URL</div>
+            <div class="endpoint-detail-value url" id="cardWebhookUrl">https://...</div>
+          </div>
+        </div>
+        <div class="endpoint-detail">
+          <svg class="endpoint-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <div class="endpoint-detail-content">
+            <div class="endpoint-detail-label">Authentication</div>
+            <div class="endpoint-detail-value">
+              <span class="badge-indicator" id="cardAuthStatus">
+                <span id="cardAuthText">No API Key</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <h3 id="settingsTitle">Edit Endpoint</h3>
+        <button class="icon-button" id="closeSettings" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-body">
+        <div class="form-section">
+          <div class="form-section-title">Basic Info</div>
+          <div class="form-group">
+            <label for="endpointName">Endpoint Name</label>
+            <input type="text" id="endpointName" placeholder="e.g., Notes App, YouTube Summary">
+          </div>
+          <div class="form-group">
+            <label for="webhookUrl">Webhook URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://your-webhook.com/endpoint">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Authentication</div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="useApiKey">
+            <label for="useApiKey">Use API Key</label>
+          </div>
+          <div class="form-group" id="apiKeyGroup" style="display: none;">
+            <label for="apiKey">API Key</label>
+            <input type="password" id="apiKey" placeholder="Enter your API key">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Payload Template</div>
+          <div class="form-group">
+            <label for="payloadTemplate">JSON Template</label>
+            <textarea id="payloadTemplate" placeholder='{"url": "{url}", "title": "{title}"}'></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Options</div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="showFullResponse">
+            <label for="showFullResponse">Show detailed response</label>
+          </div>
+          <div class="checkbox-row" style="margin-top: 8px;">
+            <input type="checkbox" id="showNotification">
+            <label for="showNotification">Show notification on response</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-footer">
+        <button class="btn btn-secondary" id="cancelSettings">Cancel</button>
+        <button class="btn btn-primary" id="saveButton" style="flex: 1;">Save Endpoint</button>
+      </div>
+    </div>
+
+    <!-- Status Message -->
+    <div id="status" class="status"></div>
+
+    <!-- Response Panel -->
+    <div id="responsePanel" class="response-panel">
+      <div class="response-header">
+        <span class="response-header-title">Response</span>
+        <button class="icon-button" id="copyResponse" title="Copy Response">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+        </button>
+      </div>
+      <div class="response-body">
+        <div class="response-content" id="responseContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- History Overlay -->
+  <div class="history-overlay" id="historyOverlay"></div>
+
+  <!-- History Panel -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-header">
+      <h3>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        History
+      </h3>
+      <div class="history-header-actions">
+        <button class="btn btn-secondary" id="exportHistory">Export</button>
+        <button class="btn btn-danger" id="clearHistory">Clear</button>
+        <button class="icon-button" id="closeHistory" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="history-search">
+      <div class="search-input-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" id="historySearch" placeholder="Search history...">
+      </div>
+    </div>
+
+    <div class="history-list" id="historyList">
+      <!-- History items inserted here -->
+    </div>
+
+    <div class="history-pagination">
+      <button class="icon-button" id="prevPage" disabled title="Previous Page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <span class="pagination-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+      <button class="icon-button" id="nextPage" disabled title="Next Page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="history-settings">
+      <div class="form-group">
+        <label for="historySize">Max History Items</label>
+        <select id="historySize">
+          <option value="5">5 items</option>
+          <option value="10">10 items</option>
+          <option value="20" selected>20 items</option>
+          <option value="50">50 items</option>
         </select>
       </div>
     </div>
-
-    <div class="history-panel" id="historyPanel">
-      <div class="history-header">
-        <div class="history-top">
-          <div class="history-tabs">
-            <button class="history-tab active" data-tab="recent">Recent</button>
-            <button class="history-tab" data-tab="all">All History</button>
-          </div>
-          <div class="history-controls">
-            <button class="secondary-button" id="exportHistory">
-              Export
-            </button>
-            <button class="secondary-button danger-button" id="clearHistory">
-              Clear
-            </button>
-          </div>
-        </div>
-        <div class="search-container">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M13 13L9 9M10.3333 5.66667C10.3333 8.244 8.244 10.3333 5.66667 10.3333C3.08934 10.3333 1 8.244 1 5.66667C1 3.08934 3.08934 1 5.66667 1C8.244 1 10.3333 3.08934 10.3333 5.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <input type="text" class="search-input" id="historySearch" placeholder="Search history...">
-        </div>
-      </div>
-      
-      <div class="history-list" id="historyList">
-        <!-- History items will be inserted here -->
-      </div>
-
-      <div class="history-pagination" id="historyPagination">
-        <button class="pagination-button" id="prevPage" disabled>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <span class="pagination-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-        <button class="pagination-button" id="nextPage" disabled>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="history-settings">
-        <div class="form-group">
-          <label for="historySize">Maximum History Size</label>
-          <select id="historySize">
-            <option value="5">5 items</option>
-            <option value="10">10 items</option>
-            <option value="20">20 items</option>
-            <option value="50">50 items</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-panel" id="settingsPanel">
-      <div class="form-group">
-        <label for="endpointName">Endpoint Name</label>
-        <input type="text" id="endpointName" placeholder="e.g., Notes App">
-      </div>
-
-      <div class="form-group">
-        <label for="webhookUrl">Webhook URL</label>
-        <input type="url" id="webhookUrl" placeholder="https://...">
-      </div>
-      
-      <div class="form-group api-auth-group">
-        <div class="toggle-group">
-          <input type="checkbox" id="useApiKey">
-          <label for="useApiKey">Use API Key Authentication</label>
-        </div>
-        <input type="password" id="apiKey" placeholder="Enter API Key" class="api-key-input">
-      </div>
-      
-      <div class="form-group">
-        <label for="payloadTemplate">Payload Template (JSON)</label>
-        <textarea id="payloadTemplate"></textarea>
-      </div>
-      
-      <div class="form-group">
-        <label>Response Handling</label>
-        <div class="checkbox-group">
-          <div class="input-group">
-            <input type="checkbox" id="showFullResponse" />
-            <label for="showFullResponse">Show detailed response</label>
-          </div>
-          <div class="input-group">
-            <input type="checkbox" id="showNotification" />
-            <label for="showNotification">Show notification when response received</label>
-          </div>
-        </div>
-      </div>
-
-      <button class="main-button" id="saveButton">Save Settings</button>
-    </div>
-
-    <button class="main-button" id="sendButton">
-      <div class="spinner"></div>
-      <span>Send Current URL</span>
-    </button>
-
-    <div id="status" class="status"></div>
-    <div id="responsePanel" class="response-panel"></div>
-  </div>
-
-  <div class="action-bar">
-    <button class="action-button primary" id="newEndpoint">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span>New</span>
-    </button>
-    <button class="action-button secondary" id="toggleSettings" disabled>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M13.5 6L9 1.5L8 2.5L11.5 6H3.5C2.67 6 2 6.67 2 7.5V14.5H3.5V7.5H11.5L8 11L9 12L13.5 7.5L9 3L13.5 6Z" fill="currentColor"/>
-        <path d="M2.5 3L5.5 6L6.5 5L3 1.5L2.5 3Z" fill="currentColor"/>
-      </svg>
-      <span>Edit</span>
-    </button>
-    <button class="action-button secondary" id="deleteButton" disabled>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M3 4H13M5 4V3C5 2.448 5.448 2 6 2H10C10.552 2 11 2.448 11 3V4M6.5 7.5V11.5M9.5 7.5V11.5M4 4L4.5 13C4.5 13.552 4.948 14 5.5 14H10.5C11.052 14 11.5 13.552 11.5 13L12 4H4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>Delete</span>
-    </button>
-    <button class="action-button secondary" id="toggleHistory">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M8 4.5V8L10.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>History</span>
-      <span class="badge" id="historyBadge" style="display: none;">0</span>
-    </button>
   </div>
 
   <script src="lib/marked.min.js"></script>
