@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=420, initial-scale=1.0">
+  <title>WebHook Wrangler</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="endpoint-selector">
+      <select id="endpointSelect">
+        <option value="">Select Endpoint...</option>
+      </select>
+    </div>
+
+    <button class="send-button" id="sendButton" disabled>
+      <div class="spinner"></div>
+      <span class="btn-text">Send</span>
+    </button>
+
+    <div class="header-actions">
+      <button class="icon-button" id="newEndpoint" title="New Endpoint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+      <button class="icon-button" id="toggleHistory" title="History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        <span class="badge" id="historyBadge" style="display: none;">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Empty State (shown when no endpoints) -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+      </svg>
+      <h3>No Endpoints Yet</h3>
+      <p>Create your first webhook endpoint to get started</p>
+      <button class="btn btn-primary" id="emptyStateNewBtn">Create Endpoint</button>
+    </div>
+
+    <!-- Endpoint Info Card -->
+    <div class="endpoint-card" id="endpointCard" style="display: none;">
+      <div class="endpoint-card-header">
+        <div class="endpoint-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-9-9v.01M12 21v.01M16.95 7.05l.01.01M7.05 16.95l.01.01M7.05 7.05l.01.01M16.95 16.95l.01.01"/>
+          </svg>
+          <span id="cardEndpointName">Endpoint Name</span>
+        </div>
+        <div class="endpoint-card-actions">
+          <button class="icon-button" id="editEndpoint" title="Edit Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="icon-button" id="deleteEndpoint" title="Delete Endpoint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="endpoint-card-body">
+        <div class="endpoint-detail">
+          <svg class="endpoint-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>
+            <path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+          </svg>
+          <div class="endpoint-detail-content">
+            <div class="endpoint-detail-label">Webhook URL</div>
+            <div class="endpoint-detail-value url" id="cardWebhookUrl">https://...</div>
+          </div>
+        </div>
+        <div class="endpoint-detail">
+          <svg class="endpoint-detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <div class="endpoint-detail-content">
+            <div class="endpoint-detail-label">Authentication</div>
+            <div class="endpoint-detail-value">
+              <span class="badge-indicator" id="cardAuthStatus">
+                <span id="cardAuthText">No API Key</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <h3 id="settingsTitle">Edit Endpoint</h3>
+        <button class="icon-button" id="closeSettings" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-body">
+        <div class="form-section">
+          <div class="form-section-title">Basic Info</div>
+          <div class="form-group">
+            <label for="endpointName">Endpoint Name</label>
+            <input type="text" id="endpointName" placeholder="e.g., Notes App, YouTube Summary">
+          </div>
+          <div class="form-group">
+            <label for="webhookUrl">Webhook URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://your-webhook.com/endpoint">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Authentication</div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="useApiKey">
+            <label for="useApiKey">Use API Key</label>
+          </div>
+          <div class="form-group" id="apiKeyGroup" style="display: none;">
+            <label for="apiKey">API Key</label>
+            <input type="password" id="apiKey" placeholder="Enter your API key">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Payload Template</div>
+          <div class="form-group">
+            <label for="payloadTemplate">JSON Template</label>
+            <textarea id="payloadTemplate" placeholder='{"url": "{url}", "title": "{title}"}'></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Options</div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="showFullResponse">
+            <label for="showFullResponse">Show detailed response</label>
+          </div>
+          <div class="checkbox-row" style="margin-top: 8px;">
+            <input type="checkbox" id="showNotification">
+            <label for="showNotification">Show notification on response</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-footer">
+        <button class="btn btn-secondary" id="cancelSettings">Cancel</button>
+        <button class="btn btn-primary" id="saveButton" style="flex: 1;">Save Endpoint</button>
+      </div>
+    </div>
+
+    <!-- Status Message -->
+    <div id="status" class="status"></div>
+
+    <!-- Response Panel -->
+    <div id="responsePanel" class="response-panel">
+      <div class="response-header">
+        <span class="response-header-title">Response</span>
+        <button class="icon-button" id="copyResponse" title="Copy Response">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+        </button>
+      </div>
+      <div class="response-body">
+        <div class="response-content" id="responseContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- History Overlay -->
+  <div class="history-overlay" id="historyOverlay"></div>
+
+  <!-- History Panel -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-header">
+      <h3>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        History
+      </h3>
+      <div class="history-header-actions">
+        <button class="btn btn-secondary" id="exportHistory">Export</button>
+        <button class="btn btn-danger" id="clearHistory">Clear</button>
+        <button class="icon-button" id="closeHistory" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="history-search">
+      <div class="search-input-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" id="historySearch" placeholder="Search history...">
+      </div>
+    </div>
+
+    <div class="history-list" id="historyList">
+      <!-- History items inserted here -->
+    </div>
+
+    <div class="history-pagination">
+      <button class="icon-button" id="prevPage" disabled title="Previous Page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <span class="pagination-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+      <button class="icon-button" id="nextPage" disabled title="Next Page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="history-settings">
+      <div class="form-group">
+        <label for="historySize">Max History Items</label>
+        <select id="historySize">
+          <option value="5">5 items</option>
+          <option value="10">10 items</option>
+          <option value="20" selected>20 items</option>
+          <option value="50">50 items</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/marked.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
