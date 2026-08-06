@@ -86,7 +86,8 @@ async function handleWebhookSend(endpointName, data, auth, showNotification) {
     payload = replacePlaceholders(payload, {
       url: data.url,
       title: data.title,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: data.note || ''
     });
 
     // Prepare headers
@@ -152,7 +153,10 @@ function replacePlaceholders(obj, values) {
   function replace(item) {
     if (typeof item === 'string') {
       return Object.entries(values).reduce((str, [key, value]) => {
-        return str.replace(new RegExp(`{${key}}`, 'g'), value);
+        // Function replacer: inserts the value verbatim. A plain string second
+        // argument would treat $&, $', $` and $1..$9 inside the value as
+        // replacement patterns, which mangles free-text values like notes.
+        return str.replace(new RegExp(`{${key}}`, 'g'), () => String(value ?? ''));
       }, item);
     }
 

@@ -33,7 +33,14 @@ Detailed response viewing with smart formatting for JSON, markdown rendering, an
   - `{url}`: Current page URL
   - `{title}`: Page title
   - `{timestamp}`: Current timestamp
+  - `{note}`: Optional note typed in the popup at send time (empty string if left blank)
 - Real-time JSON validation
+
+### ✍️ Send Notes
+- Optional "Why?" field in the popup to record why you're sending a page
+- Available to templates as `{note}`, and saved on the history entry for that send
+- Always optional: leaving it blank never blocks a send
+- Clears after each successful send, so the next page never inherits the last note
 
 ### 🔒 Security Features
 - API Key authentication support

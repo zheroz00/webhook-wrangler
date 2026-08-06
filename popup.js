@@ -17,7 +17,8 @@ const STORAGE_KEYS = {
 const DEFAULT_PAYLOAD = {
   "URL": "{url}",
   "timestamp": "{timestamp}",
-  "title": "{title}"
+  "title": "{title}",
+  "note": "{note}"
 };
 
 const DEFAULT_HISTORY_SETTINGS = {
@@ -79,6 +80,8 @@ const elements = {
   historyBadge: document.getElementById('historyBadge'),
 
   // Main Content
+  noteRow: document.getElementById('noteRow'),
+  noteInput: document.getElementById('noteInput'),
   emptyState: document.getElementById('emptyState'),
   emptyStateNewBtn: document.getElementById('emptyStateNewBtn'),
 
@@ -396,6 +399,7 @@ function toggleAuthTokenInput() {
 function showEmptyState() {
   elements.emptyState.style.display = 'flex';
   elements.endpointCard.style.display = 'none';
+  elements.noteRow.style.display = 'none';
   elements.settingsPanel.classList.remove('visible');
 }
 
@@ -405,12 +409,14 @@ function hideEmptyState() {
 
 function showEndpointCard() {
   elements.endpointCard.style.display = 'block';
+  elements.noteRow.style.display = 'block';
   elements.emptyState.style.display = 'none';
   elements.settingsPanel.classList.remove('visible');
 }
 
 function hideEndpointCard() {
   elements.endpointCard.style.display = 'none';
+  elements.noteRow.style.display = 'none';
 }
 
 function updateSendButtonState() {
@@ -505,7 +511,8 @@ async function loadHistory() {
     filteredHistory = history.filter(item =>
       item.endpointName.toLowerCase().includes(searchTerm) ||
       item.url.toLowerCase().includes(searchTerm) ||
-      (item.title && item.title.toLowerCase().includes(searchTerm))
+      (item.title && item.title.toLowerCase().includes(searchTerm)) ||
+      (item.note && item.note.toLowerCase().includes(searchTerm))
     );
   }
 
@@ -592,6 +599,7 @@ function createHistoryItemHTML(item, index) {
           <span class="history-item-title">${escapeHtml(item.endpointName)}</span>
           <span class="history-item-time">${new Date(item.timestamp).toLocaleString()}</span>
         </div>
+        ${item.note ? `<div class="history-item-note">${escapeHtml(item.note)}</div>` : ''}
         <div class="history-item-url">${escapeHtml(item.url)}</div>
         <div class="history-item-response">${formatResponse(item.response, item.isResponseTruncated)}</div>
       </div>
@@ -625,7 +633,8 @@ Generated on ${new Date().toLocaleString()}
 ${history.map(item => `
 ## ${item.endpointName}
 - **URL:** ${item.url}
-- **Time:** ${new Date(item.timestamp).toLocaleString()}
+- **Time:** ${new Date(item.timestamp).toLocaleString()}${item.note ? `
+- **Note:** ${item.note}` : ''}
 
 ### Response
 \`\`\`json
@@ -764,12 +773,17 @@ async function sendCurrentUrl() {
     const { endpoints = {} } = await chrome.storage.sync.get('endpoints');
     const selectedEndpoint = endpoints[elements.endpointSelect.value];
 
+    // Optional per-send note. Never persisted as a reusable value - it is
+    // cleared on success so the next page can't inherit it.
+    const note = elements.noteInput.value.trim();
+
     chrome.runtime.sendMessage({
       action: 'sendWebhook',
       endpoint: elements.endpointSelect.value,
       data: {
         url: tab.url,
-        title: tab.title
+        title: tab.title,
+        note
       },
       auth: selectedEndpoint.authType && selectedEndpoint.authType !== 'none' ? {
         type: selectedEndpoint.authType,
@@ -784,6 +798,7 @@ async function sendCurrentUrl() {
       if (response.success) {
         showStatus('URL sent successfully!', true);
         currentResponseData = response.responseData;
+        elements.noteInput.value = '';
 
         try {
           const { history = [] } = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
@@ -796,6 +811,10 @@ async function sendCurrentUrl() {
             response: truncatedResponse,
             isResponseTruncated: truncated
           };
+
+          if (note) {
+            historyItem.note = note;
+          }
 
           const newHistory = [historyItem, ...history].slice(0, STORAGE_LIMITS.MAX_HISTORY_SIZE);
 

@@ -211,6 +211,44 @@ body {
   padding: 16px;
 }
 
+/* Send Note (per-send, never persisted) */
+.note-row {
+  margin-bottom: 12px;
+}
+
+.note-row label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.note-row textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  transition: all var(--transition-fast);
+}
+
+.note-row textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.note-row textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
+}
+
 /* Empty State */
 .empty-state {
   display: flex;
@@ -458,6 +496,13 @@ body {
   resize: vertical;
 }
 
+.form-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -696,6 +741,17 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.history-item-note {
+  margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--primary);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .history-item-url {

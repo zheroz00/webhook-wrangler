@@ -38,6 +38,12 @@
 
   <!-- Main Content -->
   <main class="main-content">
+    <!-- Send Note (per-send, never persisted) -->
+    <div class="note-row" id="noteRow" style="display: none;">
+      <label for="noteInput">Why? (optional)</label>
+      <textarea id="noteInput" rows="2" placeholder="Why are you sending this page?"></textarea>
+    </div>
+
     <!-- Empty State (shown when no endpoints) -->
     <div class="empty-state" id="emptyState" style="display: none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -143,6 +149,7 @@
           <div class="form-group">
             <label for="payloadTemplate">JSON Template</label>
             <textarea id="payloadTemplate" placeholder='{"url": "{url}", "title": "{title}"}'></textarea>
+            <div class="form-hint">Variables: {url}, {title}, {timestamp}, {note}</div>
           </div>
         </div>
 
