@@ -94,9 +94,13 @@ async function handleWebhookSend(endpointName, data, auth, showNotification) {
       'Content-Type': 'application/json'
     };
 
-    // Add API key if provided
-    if (auth?.type === 'apiKey' && auth?.key) {
-      headers['X-API-Key'] = auth.key;
+    // Apply authentication header based on selected auth type
+    if (auth?.token) {
+      if (auth.type === 'apiKey') {
+        headers['X-API-Key'] = auth.token;
+      } else if (auth.type === 'bearer') {
+        headers['Authorization'] = `Bearer ${auth.token}`;
+      }
     }
 
     const response = await fetch(endpoint.webhookUrl, {

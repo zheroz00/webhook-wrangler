@@ -18,6 +18,20 @@ WebHook Wrangler is a Chrome extension (Manifest V3) that enables users to send 
 - **manifest.json**: Manifest V3 configuration with permissions for activeTab, storage, and notifications
 - **lib/marked.min.js**: Local copy of marked.js for markdown rendering (CSP compliance)
 
+**Dual-Browser Structure:**
+The repository ships two parallel trees that must stay in sync:
+- **Chrome build (repo root):** MV3 with `background.service_worker`, uses `chrome.*` APIs, declares `web_accessible_resources` for `lib/*`.
+- **Firefox build (`firefox/`):** MV3 with persistent `background.scripts`, uses `browser.*` WebExtensions APIs, adds `browser_specific_settings.gecko` (id `webhook-wrangler@example.com`, `strict_min_version: 109.0`), omits `web_accessible_resources`.
+
+**Maintenance rule:** Any change to a root file (popup.js, popup.css, popup.html, background.js, manifest.json, lib/) must be mirrored into `firefox/`. Intentional drift between the trees:
+- `firefox/background.js` uses `browser.*` WebExtensions APIs and is written in Promise/`async-await` style (Firefox's `browser.*` APIs return Promises natively — there is no callback form). The Chrome `background.js` uses `chrome.*` callback form in places (e.g. `chrome.action.getBadgeText(..., callback)`). When porting a change, translate callback patterns to `await` for the Firefox copy.
+- `firefox/popup.js` is mostly a `chrome.*` → `browser.*` rename of the root copy, **except `sendCurrentUrl()`**, which is also structurally different: Chrome passes a callback to `chrome.runtime.sendMessage(...)` and nests the whole response handler inside it, while Firefox does `const response = await browser.runtime.sendMessage(...)` with that body de-indented two levels. Hand-port changes to that function; everything else in popup.js can be translated by API name alone.
+- The three manifest differences listed above.
+
+`popup.html` and `popup.css` are byte-identical between the trees and can be copied straight across.
+
+Run `diff background.js firefox/background.js` and `diff manifest.json firefox/manifest.json` after edits to confirm no unintended drift. `diff popup.html firefox/popup.html` and `diff popup.css firefox/popup.css` should produce no output at all.
+
 **Storage Architecture:**
 - Chrome sync storage: Endpoint configurations, settings, last selected endpoint (limited to ~100KB)
 - Chrome local storage: Complete history data (~5MB quota) to avoid sync storage limitations
@@ -74,6 +88,11 @@ WebHook Wrangler is a Chrome extension (Manifest V3) that enables users to send 
    - For background.js changes, click "Service Worker" link to view console logs
    - For popup changes, right-click extension icon → "Inspect popup"
 
+3. Load unpacked Firefox extension (for Firefox parity testing):
+   - Navigate to `about:debugging#/runtime/this-firefox`
+   - Click "Load Temporary Add-on…" and select `firefox/manifest.json`
+   - Firefox temporary add-ons are removed on browser restart
+
 ### Debugging
 
 **Storage issues:**
@@ -111,7 +130,7 @@ WebHook Wrangler is a Chrome extension (Manifest V3) that enables users to send 
 - Response panel and markdown styles (lines 786-922)
 - Status messages and utilities (lines 924-1001)
 
-**popup.js (~869 lines):**
+**popup.js (~868 lines):**
 - Constants and storage management (lines 1-70)
 - DOM elements object (lines 72-128)
 - Initialization and event listeners (lines 130-176)
@@ -122,7 +141,7 @@ WebHook Wrangler is a Chrome extension (Manifest V3) that enables users to send 
 - Webhook sending logic (lines 737-861)
 - Utility functions (lines 863-869)
 
-**background.js (171 lines):**
+**background.js (170 lines):**
 - Message listener and response handling (lines 1-25)
 - `showWebhookNotification()` - Chrome notification creation (lines 27-45)
 - `handleWebhookSend()` - main HTTP request handling with URL validation (lines 47-145)

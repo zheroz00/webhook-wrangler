@@ -98,9 +98,10 @@ const elements = {
   cancelSettings: document.getElementById('cancelSettings'),
   endpointName: document.getElementById('endpointName'),
   webhookUrl: document.getElementById('webhookUrl'),
-  useApiKey: document.getElementById('useApiKey'),
-  apiKeyGroup: document.getElementById('apiKeyGroup'),
-  apiKey: document.getElementById('apiKey'),
+  authType: document.getElementById('authType'),
+  authTokenGroup: document.getElementById('authTokenGroup'),
+  authTokenLabel: document.getElementById('authTokenLabel'),
+  authToken: document.getElementById('authToken'),
   payloadTemplate: document.getElementById('payloadTemplate'),
   showFullResponse: document.getElementById('showFullResponse'),
   showNotification: document.getElementById('showNotification'),
@@ -134,6 +135,7 @@ let currentResponseData = null;
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   await migrateHistoryToLocalStorage();
+  await migrateEndpointAuthShape();
   await loadEndpoints();
 
   const { historySettings = DEFAULT_HISTORY_SETTINGS } = await browser.storage.sync.get('historySettings');
@@ -158,7 +160,7 @@ function initEventListeners() {
   elements.closeSettings.addEventListener('click', closeSettingsPanel);
   elements.cancelSettings.addEventListener('click', closeSettingsPanel);
   elements.saveButton.addEventListener('click', saveEndpoint);
-  elements.useApiKey.addEventListener('change', toggleApiKeyInput);
+  elements.authType.addEventListener('change', toggleAuthTokenInput);
 
   // History panel
   elements.toggleHistory.addEventListener('click', openHistoryPanel);
@@ -234,21 +236,24 @@ async function loadSelectedEndpoint() {
       elements.cardEndpointName.textContent = endpoint.name || elements.endpointSelect.value;
       elements.cardWebhookUrl.textContent = endpoint.webhookUrl || 'Not configured';
 
-      if (endpoint.useApiKey) {
+      if (endpoint.authType === 'apiKey') {
         elements.cardAuthStatus.className = 'badge-indicator success';
-        elements.cardAuthText.textContent = 'API Key Enabled';
+        elements.cardAuthText.textContent = 'X-API-Key';
+      } else if (endpoint.authType === 'bearer') {
+        elements.cardAuthStatus.className = 'badge-indicator success';
+        elements.cardAuthText.textContent = 'Bearer Token';
       } else {
         elements.cardAuthStatus.className = 'badge-indicator warning';
-        elements.cardAuthText.textContent = 'No API Key';
+        elements.cardAuthText.textContent = 'No Auth';
       }
 
       // Update form fields for editing
       elements.endpointName.value = endpoint.name || '';
       elements.webhookUrl.value = endpoint.webhookUrl || '';
       elements.payloadTemplate.value = endpoint.payloadTemplate || JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-      elements.useApiKey.checked = endpoint.useApiKey || false;
-      elements.apiKey.value = endpoint.apiKey || '';
-      elements.apiKeyGroup.style.display = endpoint.useApiKey ? 'block' : 'none';
+      elements.authType.value = endpoint.authType || 'none';
+      elements.authToken.value = endpoint.authToken || '';
+      toggleAuthTokenInput();
       elements.showFullResponse.checked = endpoint.showDetailedResponse || false;
       elements.showNotification.checked = endpoint.showNotification || false;
     }
@@ -266,9 +271,9 @@ function openNewEndpoint() {
   elements.endpointName.value = '';
   elements.webhookUrl.value = '';
   elements.payloadTemplate.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-  elements.useApiKey.checked = false;
-  elements.apiKey.value = '';
-  elements.apiKeyGroup.style.display = 'none';
+  elements.authType.value = 'none';
+  elements.authToken.value = '';
+  toggleAuthTokenInput();
   elements.showFullResponse.checked = true;
   elements.showNotification.checked = false;
 
@@ -322,8 +327,8 @@ async function saveEndpoint() {
       name: endpointName,
       webhookUrl: elements.webhookUrl.value.trim(),
       payloadTemplate: elements.payloadTemplate.value,
-      useApiKey: elements.useApiKey.checked,
-      apiKey: elements.apiKey.value,
+      authType: elements.authType.value,
+      authToken: elements.authType.value === 'none' ? '' : elements.authToken.value,
       showDetailedResponse: elements.showFullResponse.checked,
       showNotification: elements.showNotification.checked
     };
@@ -370,10 +375,20 @@ async function deleteEndpoint() {
   }
 }
 
-function toggleApiKeyInput() {
-  elements.apiKeyGroup.style.display = elements.useApiKey.checked ? 'block' : 'none';
-  if (!elements.useApiKey.checked) {
-    elements.apiKey.value = '';
+function toggleAuthTokenInput() {
+  const authType = elements.authType.value;
+  if (authType === 'none') {
+    elements.authTokenGroup.style.display = 'none';
+    elements.authToken.value = '';
+    return;
+  }
+  elements.authTokenGroup.style.display = 'block';
+  if (authType === 'apiKey') {
+    elements.authTokenLabel.textContent = 'API Key';
+    elements.authToken.placeholder = 'Enter your API key';
+  } else if (authType === 'bearer') {
+    elements.authTokenLabel.textContent = 'Bearer Token';
+    elements.authToken.placeholder = "Paste raw token (no 'Bearer ' prefix)";
   }
 }
 
@@ -756,9 +771,9 @@ async function sendCurrentUrl() {
         url: tab.url,
         title: tab.title
       },
-      auth: selectedEndpoint.useApiKey ? {
-        type: 'apiKey',
-        key: selectedEndpoint.apiKey
+      auth: selectedEndpoint.authType && selectedEndpoint.authType !== 'none' ? {
+        type: selectedEndpoint.authType,
+        token: selectedEndpoint.authToken
       } : null,
       showNotification: selectedEndpoint.showNotification || false
     });
@@ -839,6 +854,27 @@ async function saveHistory(historyItem) {
   } catch (error) {
     console.error('Error saving history:', error);
     showStatus('Warning: Could not save to history due to storage limits', false);
+  }
+}
+
+async function migrateEndpointAuthShape() {
+  try {
+    const { [STORAGE_KEYS.ENDPOINTS]: endpoints = {} } = await browser.storage.sync.get(STORAGE_KEYS.ENDPOINTS);
+    let changed = false;
+    for (const name of Object.keys(endpoints)) {
+      const endpoint = endpoints[name];
+      if (endpoint.authType !== undefined) continue;
+      endpoint.authType = endpoint.useApiKey ? 'apiKey' : 'none';
+      endpoint.authToken = endpoint.useApiKey ? (endpoint.apiKey || '') : '';
+      delete endpoint.useApiKey;
+      delete endpoint.apiKey;
+      changed = true;
+    }
+    if (changed) {
+      await browser.storage.sync.set({ [STORAGE_KEYS.ENDPOINTS]: endpoints });
+    }
+  } catch (error) {
+    console.error('Error migrating endpoint auth shape:', error);
   }
 }
 
